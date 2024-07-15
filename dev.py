@@ -1,5 +1,10 @@
 import math
 
+def vpximg2canvas(img):
+    print(img)
+
+
+
 char_, short_, int_, long_, void_ = 0, 0, 0, 0, 0
 int8_t = char_
 uint8_t = char_
@@ -1251,12 +1256,12 @@ class nestegg_packet:
 def nestegg_free_packet(pkt):
     frame = None
     
-    while pkt.frame:
+    while hasattr(pkt, 'frame') and pkt.frame:
         frame = pkt.frame
         pkt.frame = frame.next
         frame.data = ''
         frame = ''
-    
+        
     pkt = ''
 
 def ne_io_read(io, buffer, length):
@@ -1952,7 +1957,7 @@ def read_frame(input, buf, buf_off, buf_sz, buf_alloc_sz):
     infile = input.infile
     kind = input.kind
     if kind == WEBM_FILE:
-        if input.chunk >= input.chunks:
+        if input.chunk >= input.chunks[0]:
             track = [int_]
             
             while True:
@@ -2938,9 +2943,1778 @@ def vp8_dixie_modemv_process_row(ctx, bool, row, start_col, num_cols):
         this_off += 1
         above_off += 1
 
-def vp8_dixie_tokens_process_row(ctx, partition, row, start_col, num_cols):
-    pass
+def reset_above_context(above, cols):
+    for col in range(cols):
+        memset(above[col], 0, 0, above[col].length)
 
+def reset_row_context(left):
+    memset(left, 0, 0, left.length)
+
+def reset_mb_context(left, above, mode):
+    memset(left, 0, 0, 8)
+    memset(above, 0, 0, 8)
+
+    if mode != B_PRED and mode != SPLITMV:
+        left[8] = 0
+        above[8] = 0
+
+
+EOB_CONTEXT_NODE = 0
+ZERO_CONTEXT_NODE = 1
+ONE_CONTEXT_NODE = 2
+LOW_VAL_CONTEXT_NODE = 3
+TWO_CONTEXT_NODE = 4
+THREE_CONTEXT_NODE = 5
+HIGH_LOW_CONTEXT_NODE = 6
+CAT_ONE_CONTEXT_NODE = 7
+CAT_THREEFOUR_CONTEXT_NODE = 8
+CAT_THREE_CONTEXT_NODE = 9
+CAT_FIVE_CONTEXT_NODE = 10
+
+ZERO_TOKEN = 0
+ONE_TOKEN = 1
+TWO_TOKEN = 2
+THREE_TOKEN = 3
+FOUR_TOKEN = 4
+DCT_VAL_CATEGORY1 = 5
+DCT_VAL_CATEGORY2 = 6
+DCT_VAL_CATEGORY3 = 7
+DCT_VAL_CATEGORY4 = 8
+DCT_VAL_CATEGORY5 = 9
+DCT_VAL_CATEGORY6 = 10
+DCT_EOB_TOKEN = 11
+MAX_ENTROPY_TOKENS = 12
+
+left_context_index = [
+    0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3,
+    4, 4, 5, 5, 6, 6, 7, 7, 8
+]
+
+above_context_index = [
+        0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3,
+        4, 5, 4, 5, 6, 7, 6, 7, 8
+]
+
+def X(n):
+    return ((n) * PREV_COEF_CONTEXTS * ENTROPY_NODES)
+
+bands_x = [
+    X(0), X(1), X(2), X(3), X(6), X(4), X(5), X(6),
+    X(6), X(6), X(6), X(6), X(6), X(6), X(6), X(7)
+]
+
+extrabits = [
+    {
+        "min_val": 0,
+        "length": -1,
+        "probs": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    },
+    {
+        "min_val": 1,
+        "length": 0,
+        "probs": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    },
+    {
+        "min_val": 2,
+        "length": 0,
+        "probs": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    },
+    {
+        "min_val": 3,
+        "length": 0,
+        "probs": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    },
+    {
+        "min_val": 4,
+        "length": 0,
+        "probs": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    },
+    {
+        "min_val": 5,
+        "length": 0,
+        "probs": [159, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    },
+    {
+        "min_val": 7,
+        "length": 1,
+        "probs": [145, 165, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    },
+    {
+        "min_val": 11,
+        "length": 2,
+        "probs": [140, 148, 173, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    },
+    {
+        "min_val": 19,
+        "length": 3,
+        "probs": [135, 140, 155, 176, 0, 0, 0, 0, 0, 0, 0, 0]
+    },
+    {
+        "min_val": 35,
+        "length": 4,
+        "probs": [130, 134, 141, 157, 180, 0, 0, 0, 0, 0, 0, 0]
+    },
+    {
+        "min_val": 67,
+        "length": 10,
+        "probs": [129, 130, 133, 140, 153, 177, 196, 230, 243, 254, 254, 0]
+    },
+    {
+        "min_val": 0,
+        "length": -1,
+        "probs": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    }
+]
+
+zigzag = [
+    0, 1, 4, 8, 5, 2, 3, 6, 9, 12, 13, 10, 7, 11, 14, 15
+]
+
+BLOCK_LOOP = 0
+DO_WHILE = 1
+CHECK_0_ = 2
+CAT_FIVE_CONTEXT_NODE_0_ = 3
+CAT_THREEFOUR_CONTEXT_NODE_0_ = 4
+CAT_THREE_CONTEXT_NODE_0_ = 5
+HIGH_LOW_CONTEXT_NODE_0_ = 6
+CAT_ONE_CONTEXT_NODE_0_ = 7
+LOW_VAL_CONTEXT_NODE_0_ = 8
+THREE_CONTEXT_NODE_0_ = 9
+TWO_CONTEXT_NODE_0_ = 10
+ONE_CONTEXT_NODE_0_ = 11
+BLOCK_FINISHED = 12
+END = 13
+
+def decode_mb_tokens(bool, left, above, tokens, tokens_off, mode, probs, factor):
+    i = int_
+    stopp = int_
+    type = int_
+    c = int_
+    t = int_
+    v = int_
+    val = int_
+    bits_count = int_
+    eob_mask = int_
+    b_tokens = short_
+    b_tokens_off = 0
+    type_probs = char_
+    type_probs_off = 0
+    prob = char_
+    prob_off = 0
+    dqf = short_
+
+    eob_mask = 0
+    
+    def DECODE_AND_APPLYSIGN(value_to_sign):
+        v = (-value_to_sign if bool_get_bit(bool) else value_to_sign) * dqf[(not not c) + 0]
+
+    def DECODE_AND_BRANCH_IF_ZERO(probability, branch):
+        if not bool_get(bool, probability):
+            goto_ = branch
+            return 1
+
+    def DECODE_AND_LOOP_IF_ZERO(probability, branch):
+        if not bool_get(bool, probability):
+            prob_off = type_probs_off
+            if c < 15:
+                c += 1
+                prob_off += bands_x[c]
+                goto_ = branch
+                return 1
+
+            else:
+                goto_ = BLOCK_FINISHED
+                return 1
+
+    def DECODE_SIGN_WRITE_COEFF_AND_CHECK_EXIT(val):
+        DECODE_AND_APPLYSIGN(val)
+        prob_off = type_probs_off + (ENTROPY_NODES * 2)
+        if c < 15:
+            b_tokens[b_tokens_off + zigzag[c]] = v
+            c += 1
+            goto_ = DO_WHILE
+            return 1
+    
+        b_tokens[b_tokens_off + zigzag[15]] = v
+        goto_ = BLOCK_FINISHED
+        return 1
+
+    def DECODE_EXTRABIT_AND_ADJUST_VAL(t, bits_count):
+        val += bool_get(bool, extrabits[t].probs[bits_count]) << bits_count
+
+    
+    if (mode != B_PRED and mode != SPLITMV):
+        i = 24
+        stopp = 24
+        type = 1
+        b_tokens = tokens; b_tokens_off = tokens_off + 24 * 16
+        dqf = factor[TOKEN_BLOCK_Y2]
+    else:
+        i = 0
+        stopp = 16
+        type = 3
+        b_tokens = tokens; b_tokens_off = tokens_off
+        dqf = factor[TOKEN_BLOCK_Y1]
+    
+    type_probs = probs
+    type_probs_off = type * COEF_BANDS * PREV_COEF_CONTEXTS * ENTROPY_NODES
+
+    goto_ = BLOCK_LOOP
+    
+    while True:
+        if (goto_ == BLOCK_LOOP):
+            t = left[left_context_index[i]] + above[above_context_index[i]]
+            c = (not type) + 0
+
+            prob = type_probs; prob_off = type_probs_off
+            prob_off += t * ENTROPY_NODES
+
+            goto_ = DO_WHILE
+        
+        if (goto_ == DO_WHILE):
+            prob_off += bands_x[c]
+            if (DECODE_AND_BRANCH_IF_ZERO(prob[prob_off + EOB_CONTEXT_NODE], BLOCK_FINISHED)):
+                continue
+
+            goto_ = CHECK_0_
+            
+        if (goto_ == CHECK_0_):
+            if (DECODE_AND_LOOP_IF_ZERO(prob[prob_off + ZERO_CONTEXT_NODE], CHECK_0_)):
+                continue
+            if (DECODE_AND_BRANCH_IF_ZERO(prob[prob_off + ONE_CONTEXT_NODE], ONE_CONTEXT_NODE_0_)):
+                continue
+            if (DECODE_AND_BRANCH_IF_ZERO(prob[prob_off + LOW_VAL_CONTEXT_NODE], LOW_VAL_CONTEXT_NODE_0_)):
+                continue
+            if (DECODE_AND_BRANCH_IF_ZERO(prob[prob_off + HIGH_LOW_CONTEXT_NODE], HIGH_LOW_CONTEXT_NODE_0_)):
+                continue
+            if (DECODE_AND_BRANCH_IF_ZERO(prob[prob_off + CAT_THREEFOUR_CONTEXT_NODE], CAT_THREEFOUR_CONTEXT_NODE_0_)):
+                continue
+            if (DECODE_AND_BRANCH_IF_ZERO(prob[prob_off + CAT_FIVE_CONTEXT_NODE], CAT_FIVE_CONTEXT_NODE_0_)):
+                continue
+            val = extrabits[DCT_VAL_CATEGORY6].min_val
+            bits_count = extrabits[DCT_VAL_CATEGORY6].length
+
+            while True:
+                DECODE_EXTRABIT_AND_ADJUST_VAL(DCT_VAL_CATEGORY6, bits_count)
+                bits_count -= 1
+
+                if (bits_count >= 0):
+                    break
+
+            if (DECODE_SIGN_WRITE_COEFF_AND_CHECK_EXIT(val)):
+                continue
+        
+        if (goto_ == CAT_FIVE_CONTEXT_NODE_0_):
+            val = extrabits[DCT_VAL_CATEGORY5].min_val
+            DECODE_EXTRABIT_AND_ADJUST_VAL(DCT_VAL_CATEGORY5, 4)
+            DECODE_EXTRABIT_AND_ADJUST_VAL(DCT_VAL_CATEGORY5, 3)
+            DECODE_EXTRABIT_AND_ADJUST_VAL(DCT_VAL_CATEGORY5, 2)
+            DECODE_EXTRABIT_AND_ADJUST_VAL(DCT_VAL_CATEGORY5, 1)
+            DECODE_EXTRABIT_AND_ADJUST_VAL(DCT_VAL_CATEGORY5, 0)
+            if (DECODE_SIGN_WRITE_COEFF_AND_CHECK_EXIT(val)):
+                continue
+            
+        if (goto_ == CAT_THREEFOUR_CONTEXT_NODE_0_):
+            if (DECODE_AND_BRANCH_IF_ZERO(prob[prob_off + CAT_THREE_CONTEXT_NODE], CAT_THREE_CONTEXT_NODE_0_)):
+                continue
+            val = extrabits[DCT_VAL_CATEGORY4].min_val
+            DECODE_EXTRABIT_AND_ADJUST_VAL(DCT_VAL_CATEGORY4, 3)
+            DECODE_EXTRABIT_AND_ADJUST_VAL(DCT_VAL_CATEGORY4, 2)
+            DECODE_EXTRABIT_AND_ADJUST_VAL(DCT_VAL_CATEGORY4, 1)
+            DECODE_EXTRABIT_AND_ADJUST_VAL(DCT_VAL_CATEGORY4, 0)
+            if (DECODE_SIGN_WRITE_COEFF_AND_CHECK_EXIT(val)):
+                continue
+        
+        if (goto_ == CAT_THREE_CONTEXT_NODE_0_):
+            val = extrabits[DCT_VAL_CATEGORY3].min_val
+            DECODE_EXTRABIT_AND_ADJUST_VAL(DCT_VAL_CATEGORY3, 2)
+            DECODE_EXTRABIT_AND_ADJUST_VAL(DCT_VAL_CATEGORY3, 1)
+            DECODE_EXTRABIT_AND_ADJUST_VAL(DCT_VAL_CATEGORY3, 0)
+            if (DECODE_SIGN_WRITE_COEFF_AND_CHECK_EXIT(val)):
+                continue
+
+        if (goto_ == HIGH_LOW_CONTEXT_NODE_0_):
+            if (DECODE_AND_BRANCH_IF_ZERO(prob[prob_off + CAT_ONE_CONTEXT_NODE], CAT_ONE_CONTEXT_NODE_0_)):
+                continue
+
+            val = extrabits[DCT_VAL_CATEGORY2].min_val
+            DECODE_EXTRABIT_AND_ADJUST_VAL(DCT_VAL_CATEGORY2, 1)
+            DECODE_EXTRABIT_AND_ADJUST_VAL(DCT_VAL_CATEGORY2, 0)
+            if (DECODE_SIGN_WRITE_COEFF_AND_CHECK_EXIT(val)):
+                continue
+
+        if (goto_ == CAT_ONE_CONTEXT_NODE_0_):
+            val = extrabits[DCT_VAL_CATEGORY1].min_val
+            DECODE_EXTRABIT_AND_ADJUST_VAL(DCT_VAL_CATEGORY1, 0)
+            if (DECODE_SIGN_WRITE_COEFF_AND_CHECK_EXIT(val)):
+                continue
+
+        if (goto_ == LOW_VAL_CONTEXT_NODE_0_):
+            if (DECODE_AND_BRANCH_IF_ZERO(prob[prob_off + TWO_CONTEXT_NODE], TWO_CONTEXT_NODE_0_)):
+                continue
+            if (DECODE_AND_BRANCH_IF_ZERO(prob[prob_off + THREE_CONTEXT_NODE], THREE_CONTEXT_NODE_0_)):
+                continue
+            if (DECODE_SIGN_WRITE_COEFF_AND_CHECK_EXIT(4)):
+                continue
+
+        if (goto_ == THREE_CONTEXT_NODE_0_):
+            if (DECODE_SIGN_WRITE_COEFF_AND_CHECK_EXIT(3)):
+                continue
+
+        if (goto_ == TWO_CONTEXT_NODE_0_):
+            if (DECODE_SIGN_WRITE_COEFF_AND_CHECK_EXIT(2)):
+                continue
+
+        if (goto_ == ONE_CONTEXT_NODE_0_):
+            DECODE_AND_APPLYSIGN(1)
+            prob_off = type_probs_off + ENTROPY_NODES
+
+            if (c < 15):
+                b_tokens[b_tokens_off + zigzag[c]] = v
+                c += 1
+                goto_ = DO_WHILE
+                continue
+
+            b_tokens[b_tokens_off + zigzag[15]] = v
+            goto_ = BLOCK_FINISHED
+        
+        if (goto_ == BLOCK_FINISHED):
+            eob_mask = (eob_mask | ((c > 1) + 0 << i)) & 0xFFFFFFFF
+            
+            t = int(c != (not type))
+            eob_mask = (eob_mask | (t << 31)) & 0xFFFFFFFF
+
+            left[left_context_index[i]] = above[above_context_index[i]] = t
+            b_tokens_off += 16
+
+            i += 1
+
+            if (i < stopp):
+                goto_ = BLOCK_LOOP
+                continue
+
+            if (i == 25):
+                type = 0
+                i = 0
+                stopp = 16
+                type_probs_off = type * COEF_BANDS * PREV_COEF_CONTEXTS * ENTROPY_NODES
+                b_tokens_off = tokens_off
+                dqf = factor[TOKEN_BLOCK_Y1]
+                goto_ = BLOCK_LOOP
+                continue
+
+            if (i == 16):
+                type = 2
+                type_probs_off = type * COEF_BANDS * PREV_COEF_CONTEXTS * ENTROPY_NODES
+                stopp = 24
+                dqf = factor[TOKEN_BLOCK_UV]
+                goto_ = BLOCK_LOOP
+                continue
+        
+        goto_ = END
+
+        if goto_ != END:
+            break
+        
+    return eob_mask
+
+
+def vp8_dixie_tokens_process_row(ctx, partition, row, start_col, num_cols):
+    tokens = ctx.tokens[partition]
+    coeffs = tokens.coeffs
+    coeffs_off = + 25 * 16 * start_col
+    col = int_
+    above = ctx.above_token_entropy_ctx
+    above_off = + start_col
+    left = tokens.left_token_entropy_ctx
+    mbi = ctx.mb_info_rows[1 + row]
+    mbi_off = ctx.mb_info_rows_off[1 + row] + start_col
+    
+    if row == 0:
+        reset_above_context(above, num_cols)
+
+    if start_col == 0:
+        reset_row_context(left)
+        
+    for col in range(start_col, start_col + num_cols):
+        memset(coeffs, coeffs_off, 0, 25 * 16)
+        
+        if mbi[mbi_off].base.skip_coeff:
+            reset_mb_context(left, above[above_off], mbi[mbi_off].base.y_mode)
+            mbi[mbi_off].base.eob_mask = 0
+        else:
+            dqf = ctx.dequant_factors
+            dqf_off = + mbi[mbi_off].base.segment_id
+            mbi[mbi_off].base.eob_mask = decode_mb_tokens(
+                tokens.bool, left, above[above_off],
+                coeffs, coeffs_off, mbi[mbi_off].base.y_mode,
+                ctx.entropy_hdr.coeff_probs_, dqf[dqf_off].factor
+            )
+
+        above_off += 1
+        mbi_off += 1
+        coeffs_off += 25 * 16
+
+class img_index:
+    def __init__(self):
+        self.y = char_
+        self.u = char_
+        self.v = char_
+        self.y_off = 0
+        self.u_off = 0
+        self.v_off = 0
+        self.stride = int_
+        self.uv_stride = int_
+
+def CLAMP_255(x):
+    return (0 if x < 0 else (255 if x > 255 else x))
+
+cospi8sqrt2minus1 = 20091
+sinpi8sqrt2 = 35468
+def idct_columns(input, input_off, output, output_off):
+    a1 = int_
+    b1 = int_
+    c1 = int_
+    d1 = int_
+
+    ip = input
+    ip_off = input_off
+    op = output
+    op_off = output_off
+    temp1 = int_
+    temp2 = int_
+    shortpitch = 4
+
+    for i in range(4):
+        a1 = ip[ip_off + 0] + ip[ip_off + 8]
+        b1 = ip[ip_off + 0] - ip[ip_off + 8]
+
+        temp1 = (ip[ip_off + 4] * sinpi8sqrt2) >> 16
+        temp2 = ip[ip_off + 12] + ((ip[ip_off + 12] * cospi8sqrt2minus1) >> 16)
+        c1 = temp1 - temp2
+
+        temp1 = ip[ip_off + 4] + ((ip[ip_off + 4] * cospi8sqrt2minus1) >> 16)
+        temp2 = (ip[ip_off + 12] * sinpi8sqrt2) >> 16
+        d1 = temp1 + temp2
+
+        op[op_off + shortpitch * 0] = a1 + d1
+        op[op_off + shortpitch * 3] = a1 - d1
+
+        op[op_off + shortpitch * 1] = b1 + c1
+        op[op_off + shortpitch * 2] = b1 - c1
+
+        ip_off += 1
+        op_off += 1
+
+tmp_2 = Arr(16, 0)
+def vp8_dixie_idct_add(recon, recon_off, predict, predict_off, stride, coeffs, coeffs_off):
+    a1 = int_
+    b1 = int_
+    c1 = int_
+    d1 = int_
+    temp1 = int_
+    temp2 = int_
+    tmp_off = 0
+
+    idct_columns(coeffs, coeffs_off, tmp_2, tmp_off)
+    coeffs = tmp_2; coeffs_off = tmp_off
+    
+    for i in range(4):
+        a1 = coeffs[coeffs_off + 0] + coeffs[coeffs_off + 2]
+        b1 = coeffs[coeffs_off + 0] - coeffs[coeffs_off + 2]
+
+        temp1 = (coeffs[coeffs_off + 1] * sinpi8sqrt2) >> 16
+        temp2 = coeffs[coeffs_off + 3] + ((coeffs[coeffs_off + 3] * cospi8sqrt2minus1) >> 16)
+        c1 = temp1 - temp2
+
+        temp1 = coeffs[coeffs_off + 1] + ((coeffs[coeffs_off + 1] * cospi8sqrt2minus1) >> 16)
+        temp2 = (coeffs[coeffs_off + 3] * sinpi8sqrt2) >> 16
+        d1 = temp1 + temp2
+
+        recon[recon_off + 0] = (predict[predict_off + 0] + ((a1 + d1 + 4) >> 3))
+        recon[recon_off + 3] = (predict[predict_off + 3] + ((a1 - d1 + 4) >> 3))
+        recon[recon_off + 1] = (predict[predict_off + 1] + ((b1 + c1 + 4) >> 3))
+        recon[recon_off + 2] = (predict[predict_off + 2] + ((b1 - c1 + 4) >> 3))
+
+        coeffs_off += 4
+        recon_off += stride
+        predict_off += stride
+
+
+def fixup_left(predict, predict_off, width, stride, row, mode):
+    left = predict
+    left_off = predict_off - 1
+
+    if (mode == DC_PRED and row):
+        above = predict
+        above_off = predict_off - stride
+
+        for i in range(width):
+            left[left_off] = above[above_off + i]
+            left_off += stride
+        
+    else:
+        left_off -= stride
+
+        for i in range(width):
+            left[left_off] = 129
+            left_off += stride
+
+def fixup_above(predict, predict_off, width, stride, col, mode):
+    above = predict
+    above_off = predict_off - stride
+
+    if (mode == DC_PRED and col):
+        left = predict
+        left_off = predict_off - 1
+
+        for i in range(width):
+            above[above_off + i] = left[left_off]
+            left_off += stride
+
+    else:
+        memset(above, above_off - 1, 127, width + 1)
+
+    memset(above, above_off + width, 127, 4)
+
+
+def predict_h_nxn(predict, predict_off, stride, n):
+    left = predict
+    left_off = predict_off - 1
+    i = int_
+    j = int_
+
+    for i in range(n):
+        for j in range(n):
+            predict[predict_off + i * stride + j] = left[left_off + i * stride]
+
+
+def predict_v_nxn(predict, predict_off, stride, n):
+    above = predict
+    above_off = predict_off - stride
+
+    for i in range(n):
+        for j in range(n):
+            predict[predict_off + i * stride + j] = above[above_off + j]
+
+def predict_tm_nxn(predict, predict_off, stride, n):
+    left = predict
+    left_off = predict_off - 1
+    above = predict
+    above_off = predict_off - stride
+    p = above[above_off - 1]
+
+    for j in range(n):
+        for i in range(n):
+            predict[predict_off + i] = CLAMP_255(left[left_off] + above[above_off + i] - p)
+
+        predict_off += stride
+        left_off += stride
+
+def predict_dc_nxn(predict, predict_off, stride, n):
+    left = predict
+    left_off = predict_off - 1
+    above = predict
+    above_off = predict_off - stride
+    dc = 0
+
+    for i in range(n):
+        dc += left[left_off] + above[above_off + i]
+        left_off += stride
+
+    if n == 16:
+        dc = (dc + 16) >> 5
+    elif n == 8:
+        dc = (dc + 8) >> 4
+    elif n == 4:
+        dc = (dc + 4) >> 3
+
+    for i in range(n):
+        for j in range(n):
+            predict[predict_off + i * stride + j] = dc
+
+def predict_ve_4x4(predict, predict_off, stride):
+    above = predict
+    above_off = predict_off - stride
+
+    predict[predict_off + 0] = (above[above_off - 1] + 2 * above[above_off + 0] + above[above_off + 1] + 2) >> 2
+    predict[predict_off + 1] = (above[above_off + 0] + 2 * above[above_off + 1] + above[above_off + 2] + 2) >> 2
+    predict[predict_off + 2] = (above[above_off + 1] + 2 * above[above_off + 2] + above[above_off + 3] + 2) >> 2
+    predict[predict_off + 3] = (above[above_off + 2] + 2 * above[above_off + 3] + above[above_off + 4] + 2) >> 2
+
+    for i in range(4):
+        for j in range(4):
+            predict[predict_off + i * stride + j] = predict[predict_off + j]
+
+
+def predict_he_4x4(predict, predict_off, stride):
+    left = predict
+    left_off = predict_off - 1
+
+    predict[predict_off + 0] = predict[predict_off + 1] = predict[predict_off + 2] = predict[predict_off + 3] = (left[left_off - stride] + 2 * left[left_off + 0] + left[left_off + stride] + 2) >> 2
+    predict_off += stride
+    left_off += stride
+
+    predict[predict_off + 0] = predict[predict_off + 1] = predict[predict_off + 2] = predict[predict_off + 3] = (left[left_off - stride] + 2 * left[left_off + 0] + left[left_off + stride] + 2) >> 2
+    predict_off += stride
+    left_off += stride
+
+    predict[predict_off + 0] = predict[predict_off + 1] = predict[predict_off + 2] = predict[predict_off + 3] = (left[left_off - stride] + 2 * left[left_off + 0] + left[left_off + stride] + 2) >> 2
+    predict_off += stride
+    left_off += stride
+
+    predict[predict_off + 0] = predict[predict_off + 1] = predict[predict_off + 2] = predict[predict_off + 3] = (left[left_off - stride] + 2 * left[left_off + 0] + left[left_off + 0] + 2) >> 2
+
+
+def predict_ld_4x4(predict, predict_off, stride):
+    above = predict
+    above_off = predict_off - stride
+    pred0 = int_
+    pred1 = int_
+    pred2 = int_
+    pred3 = int_
+    pred4 = int_
+    pred5 = int_
+    pred6 = int_
+
+    predict[predict_off + 0] = pred0 = (above[above_off + 0] + 2 * above[above_off + 1] + above[above_off + 2] + 2) >> 2
+    predict[predict_off + 1] = pred1 = (above[above_off + 1] + 2 * above[above_off + 2] + above[above_off + 3] + 2) >> 2
+    predict[predict_off + 2] = pred2 = (above[above_off + 2] + 2 * above[above_off + 3] + above[above_off + 4] + 2) >> 2
+    predict[predict_off + 3] = pred3 = (above[above_off + 3] + 2 * above[above_off + 4] + above[above_off + 5] + 2) >> 2
+    predict_off += stride
+
+    predict[predict_off + 0] = pred1
+    predict[predict_off + 1] = pred2
+    predict[predict_off + 2] = pred3
+    predict[predict_off + 3] = pred4 = (above[above_off + 4] + 2 * above[above_off + 5] + above[above_off + 6] + 2) >> 2
+    predict_off += stride
+
+    predict[predict_off + 0] = pred2
+    predict[predict_off + 1] = pred3
+    predict[predict_off + 2] = pred4
+    predict[predict_off + 3] = pred5 = (above[above_off + 5] + 2 * above[above_off + 6] + above[above_off + 7] + 2) >> 2
+    predict_off += stride
+
+    predict[predict_off + 0] = pred3
+    predict[predict_off + 1] = pred4
+    predict[predict_off + 2] = pred5
+    predict[predict_off + 3] = pred6 = (above[above_off + 6] + 2 * above[above_off + 7] + above[above_off + 7] + 2) >> 2
+
+
+def predict_rd_4x4(predict, predict_off, stride):
+    left = predict
+    left_off = predict_off - 1
+    above = predict
+    above_off = predict_off - stride
+    pred0 = int_
+    pred1 = int_
+    pred2 = int_
+    pred3 = int_
+    pred4 = int_
+    pred5 = int_
+    pred6 = int_
+
+    predict[predict_off + 0] = pred0 = (left[left_off + 0] + 2 * above[above_off - 1] + above[above_off + 0] + 2) >> 2
+    predict[predict_off + 1] = pred1 = (above[above_off - 1] + 2 * above[above_off + 0] + above[above_off + 1] + 2) >> 2
+    predict[predict_off + 2] = pred2 = (above[above_off + 0] + 2 * above[above_off + 1] + above[above_off + 2] + 2) >> 2
+    predict[predict_off + 3] = pred3 = (above[above_off + 1] + 2 * above[above_off + 2] + above[above_off + 3] + 2) >> 2
+    predict_off += stride
+
+    predict[predict_off + 0] = pred4 = (left[left_off + stride] + 2 * left[left_off + 0] + above[above_off - 1] + 2) >> 2
+    predict[predict_off + 1] = pred0
+    predict[predict_off + 2] = pred1
+    predict[predict_off + 3] = pred2
+    predict_off += stride
+
+    predict[predict_off + 0] = pred5 = (left[left_off + stride * 2] + 2 * left[left_off + stride] + left[left_off + 0] + 2) >> 2
+    predict[predict_off + 1] = pred4
+    predict[predict_off + 2] = pred0
+    predict[predict_off + 3] = pred1
+    predict_off += stride
+
+    predict[predict_off + 0] = pred6 = (left[left_off + stride * 3] + 2 * left[left_off + stride * 2] + left[left_off + stride] + 2) >> 2
+    predict[predict_off + 1] = pred5
+    predict[predict_off + 2] = pred4
+    predict[predict_off + 3] = pred0
+
+
+def predict_vr_4x4(predict, predict_off, stride):
+    left = predict
+    left_off = predict_off - 1
+    above = predict
+    above_off = predict_off - stride
+    pred0 = int_
+    pred1 = int_
+    pred2 = int_
+    pred3 = int_
+    pred4 = int_
+    pred5 = int_
+    pred6 = int_
+    pred7 = int_
+    pred8 = int_
+    pred9 = int_
+
+    predict[predict_off + 0] = pred0 = (above[above_off - 1] + above[above_off + 0] + 1) >> 1
+    predict[predict_off + 1] = pred1 = (above[above_off + 0] + above[above_off + 1] + 1) >> 1
+    predict[predict_off + 2] = pred2 = (above[above_off + 1] + above[above_off + 2] + 1) >> 1
+    predict[predict_off + 3] = pred3 = (above[above_off + 2] + above[above_off + 3] + 1) >> 1
+    predict_off += stride
+
+    predict[predict_off + 0] = pred4 = (left[left_off + 0] + 2 * above[above_off - 1] + above[above_off + 0] + 2) >> 2
+    predict[predict_off + 1] = pred5 = (above[above_off - 1] + 2 * above[above_off + 0] + above[above_off + 1] + 2) >> 2
+    predict[predict_off + 2] = pred6 = (above[above_off + 0] + 2 * above[above_off + 1] + above[above_off + 2] + 2) >> 2
+    predict[predict_off + 3] = pred7 = (above[above_off + 1] + 2 * above[above_off + 2] + above[above_off + 3] + 2) >> 2
+    predict_off += stride
+
+    predict[predict_off + 0] = pred8 = (left[left_off + stride] + 2 * left[left_off + 0] + above[above_off - 1] + 2) >> 2
+    predict[predict_off + 1] = pred0
+    predict[predict_off + 2] = pred1
+    predict[predict_off + 3] = pred2
+    predict_off += stride
+
+    predict[predict_off + 0] = pred9 = (left[left_off + stride * 2] + 2 * left[left_off + stride] + left[left_off + 0] + 2) >> 2
+    predict[predict_off + 1] = pred4
+    predict[predict_off + 2] = pred5
+    predict[predict_off + 3] = pred6
+
+
+def predict_vl_4x4(predict, predict_off, stride):
+    above = predict
+    above_off = predict_off - stride
+    pred0 = int_
+    pred1 = int_
+    pred2 = int_
+    pred3 = int_
+    pred4 = int_
+    pred5 = int_
+    pred6 = int_
+    pred7 = int_
+    pred8 = int_
+    pred9 = int_
+
+    predict[predict_off + 0] = pred0 = (above[above_off + 0] + above[above_off + 1] + 1) >> 1
+    predict[predict_off + 1] = pred1 = (above[above_off + 1] + above[above_off + 2] + 1) >> 1
+    predict[predict_off + 2] = pred2 = (above[above_off + 2] + above[above_off + 3] + 1) >> 1
+    predict[predict_off + 3] = pred3 = (above[above_off + 3] + above[above_off + 4] + 1) >> 1
+    predict_off += stride
+
+    predict[predict_off + 0] = pred4 = (above[above_off + 0] + 2 * above[above_off + 1] + above[above_off + 2] + 2) >> 2
+    predict[predict_off + 1] = pred5 = (above[above_off + 1] + 2 * above[above_off + 2] + above[above_off + 3] + 2) >> 2
+    predict[predict_off + 2] = pred6 = (above[above_off + 2] + 2 * above[above_off + 3] + above[above_off + 4] + 2) >> 2
+    predict[predict_off + 3] = pred7 = (above[above_off + 3] + 2 * above[above_off + 4] + above[above_off + 5] + 2) >> 2
+    predict_off += stride
+
+    predict[predict_off + 0] = pred1
+    predict[predict_off + 1] = pred2
+    predict[predict_off + 2] = pred3
+    predict[predict_off + 3] = pred8 = (above[above_off + 4] + 2 * above[above_off + 5] + above[above_off + 6] + 2) >> 2
+    predict_off += stride
+
+    predict[predict_off + 0] = pred5
+    predict[predict_off + 1] = pred6
+    predict[predict_off + 2] = pred7
+    predict[predict_off + 3] = pred9 = (above[above_off + 5] + 2 * above[above_off + 6] + above[above_off + 7] + 2) >> 2
+
+
+def predict_hd_4x4(predict, predict_off, stride):
+    left = predict
+    left_off = predict_off - 1
+    above = predict
+    above_off = predict_off - stride
+    pred0 = int_
+    pred1 = int_
+    pred2 = int_
+    pred3 = int_
+    pred4 = int_
+    pred5 = int_
+    pred6 = int_
+    pred7 = int_
+    pred8 = int_
+    pred9 = int_
+
+    predict[predict_off + 0] = pred0 = (left[left_off + 0] + above[above_off - 1] + 1) >> 1
+    predict[predict_off + 1] = pred1 = (left[left_off + 0] + 2 * above[above_off - 1] + above[above_off + 0] + 2) >> 2
+    predict[predict_off + 2] = pred2 = (above[above_off - 1] + 2 * above[above_off + 0] + above[above_off + 1] + 2) >> 2
+    predict[predict_off + 3] = pred3 = (above[above_off + 0] + 2 * above[above_off + 1] + above[above_off + 2] + 2) >> 2
+    predict_off += stride
+
+    predict[predict_off + 0] = pred4 = (left[left_off + stride] + left[left_off + 0] + 1) >> 1
+    predict[predict_off + 1] = pred5 = (left[left_off + stride] + 2 * left[left_off + 0] + above[above_off - 1] + 2) >> 2
+    predict[predict_off + 2] = pred0
+    predict[predict_off + 3] = pred1
+    predict_off += stride
+
+    predict[predict_off + 0] = pred6 = (left[left_off + stride * 2] + left[left_off + stride] + 1) >> 1
+    predict[predict_off + 1] = pred7 = (left[left_off + stride * 2] + 2 * left[left_off + stride] + left[left_off + 0] + 2) >> 2
+    predict[predict_off + 2] = pred4
+    predict[predict_off + 3] = pred5
+    predict_off += stride
+
+    predict[predict_off + 0] = pred8 = (left[left_off + stride * 3] + left[left_off + stride * 2] + 1) >> 1
+    predict[predict_off + 1] = pred9 = (left[left_off + stride * 3] + 2 * left[left_off + stride * 2] + left[left_off + stride] + 2) >> 2
+    predict[predict_off + 2] = pred6
+    predict[predict_off + 3] = pred7
+
+
+def predict_hu_4x4(predict, predict_off, stride):
+    left = predict
+    left_off = predict_off - 1
+    pred0 = int_
+    pred1 = int_
+    pred2 = int_
+    pred3 = int_
+    pred4 = int_
+    pred5 = int_
+    pred6 = int_
+
+    predict[predict_off + 0] = pred0 = (left[left_off + stride * 0] + left[left_off + stride * 1] + 1) >> 1
+    predict[predict_off + 1] = pred1 = (left[left_off + stride * 0] + 2 * left[left_off + stride * 1] + left[left_off + stride * 2] + 2) >> 2
+    predict[predict_off + 2] = pred2 = (left[left_off + stride * 1] + left[left_off + stride * 2] + 1) >> 1
+    predict[predict_off + 3] = pred3 = (left[left_off + stride * 1] + 2 * left[left_off + stride * 2] + left[left_off + stride * 3] + 2) >> 2
+    predict_off += stride
+
+    predict[predict_off + 0] = pred2
+    predict[predict_off + 1] = pred3
+    predict[predict_off + 2] = pred4 = (left[left_off + stride * 2] + left[left_off + stride * 3] + 1) >> 1
+    predict[predict_off + 3] = pred5 = (left[left_off + stride * 2] + 2 * left[left_off + stride * 3] + left[left_off + stride * 3] + 2) >> 2
+    predict_off += stride
+
+    predict[predict_off + 0] = pred4
+    predict[predict_off + 1] = pred5
+    predict[predict_off + 2] = pred6 = left[left_off + stride * 3]
+    predict[predict_off + 3] = pred6
+    predict_off += stride
+
+    predict[predict_off + 0] = pred6
+    predict[predict_off + 1] = pred6
+    predict[predict_off + 2] = pred6
+    predict[predict_off + 3] = pred6
+
+def predict_h_16x16(predict, predict_off, stride):
+    predict_h_nxn(predict, predict_off, stride, 16)
+
+def predict_v_16x16(predict, predict_off, stride):
+    predict_v_nxn(predict, predict_off, stride, 16)
+
+def predict_tm_16x16(predict, predict_off, stride):
+    predict_tm_nxn(predict, predict_off, stride, 16)
+
+def predict_h_8x8(predict, predict_off, stride):
+    predict_h_nxn(predict, predict_off, stride, 8)
+
+def predict_v_8x8(predict, predict_off, stride):
+    predict_v_nxn(predict, predict_off, stride, 8)
+
+def predict_tm_8x8(predict, predict_off, stride):
+    predict_tm_nxn(predict, predict_off, stride, 8)
+
+def predict_tm_4x4(predict, predict_off, stride):
+    predict_tm_nxn(predict, predict_off, stride, 4)
+
+tmp_4 = [0, 0, 0, 0]
+def copy_down(recon, recon_off, stride):
+    tmp_off = 0
+    copy = recon
+    copy_off = (recon_off + 16 - stride)
+
+    
+    for i in range(4):
+        tmp_4[tmp_off + i] = copy[copy_off + i]
+    copy_off += stride * 4
+    for i in range(4):
+        copy[copy_off + i] = tmp_4[tmp_off + i]
+    copy_off += stride * 4
+    for i in range(4):
+        copy[copy_off + i] = tmp_4[tmp_off + i]
+    copy_off += stride * 4
+    for i in range(4):
+        copy[copy_off + i] = tmp_4[tmp_off + i]
+
+def b_pred(predict, predict_off, stride, mbi, coeffs, coeffs_off):
+    copy_down(predict, predict_off, stride)
+
+    for i in range(16):
+        b_predict = predict
+        b_predict_off = predict_off + (i & 3) * 4
+
+        if mbi.splitt.mvs[i].d.x == B_DC_PRED:
+            predict_dc_nxn(b_predict, b_predict_off, stride, 4)
+        elif mbi.splitt.mvs[i].d.x == B_TM_PRED:
+            predict_tm_4x4(b_predict, b_predict_off, stride)
+        elif mbi.splitt.mvs[i].d.x == B_VE_PRED:
+            predict_ve_4x4(b_predict, b_predict_off, stride)
+        elif mbi.splitt.mvs[i].d.x == B_HE_PRED:
+            predict_he_4x4(b_predict, b_predict_off, stride)
+        elif mbi.splitt.mvs[i].d.x == B_LD_PRED:
+            predict_ld_4x4(b_predict, b_predict_off, stride)
+        elif mbi.splitt.mvs[i].d.x == B_RD_PRED:
+            predict_rd_4x4(b_predict, b_predict_off, stride)
+        elif mbi.splitt.mvs[i].d.x == B_VR_PRED:
+            predict_vr_4x4(b_predict, b_predict_off, stride)
+        elif mbi.splitt.mvs[i].d.x == B_VL_PRED:
+            predict_vl_4x4(b_predict, b_predict_off, stride)
+        elif mbi.splitt.mvs[i].d.x == B_HD_PRED:
+            predict_hd_4x4(b_predict, b_predict_off, stride)
+        elif mbi.splitt.mvs[i].d.x == B_HU_PRED:
+            predict_hu_4x4(b_predict, b_predict_off, stride)
+        else:
+            ASSERT(0)
+
+        vp8_dixie_idct_add(b_predict, b_predict_off, b_predict, b_predict_off, stride, coeffs, coeffs_off)
+        coeffs_off += 16
+
+        if ((i & 3) == 3):
+            predict_off += stride * 4
+
+def vp8_dixie_walsh(input, input_off, output, output_off):
+    a1 = int_
+    b1 = int_
+    c1 = int_
+    d1 = int_
+    a2 = int_
+    b2 = int_
+    c2 = int_
+    d2 = int_
+    ip = input
+    ip_off = input_off
+    op = output
+    op_off = output_off
+
+    for i in range(4):
+        a1 = ip[ip_off + 0] + ip[ip_off + 12]
+        b1 = ip[ip_off + 4] + ip[ip_off + 8]
+        c1 = ip[ip_off + 4] - ip[ip_off + 8]
+        d1 = ip[ip_off + 0] - ip[ip_off + 12]
+
+        op[op_off + 0] = a1 + b1
+        op[op_off + 4] = c1 + d1
+        op[op_off + 8] = a1 - b1
+        op[op_off + 12] = d1 - c1
+        ip_off += 1
+        op_off += 1
+
+    ip = output; ip_off = output_off
+    op = output; op_off = output_off
+
+    for i in range(4):
+        a1 = ip[ip_off + 0] + ip[ip_off + 3]
+        b1 = ip[ip_off + 1] + ip[ip_off + 2]
+        c1 = ip[ip_off + 1] - ip[ip_off + 2]
+        d1 = ip[ip_off + 0] - ip[ip_off + 3]
+
+        a2 = a1 + b1
+        b2 = c1 + d1
+        c2 = a1 - b1
+        d2 = d1 - c1
+
+        op[op_off + 0] = (a2 + 3) >> 3
+        op[op_off + 1] = (b2 + 3) >> 3
+        op[op_off + 2] = (c2 + 3) >> 3
+        op[op_off + 3] = (d2 + 3) >> 3
+
+        ip_off += 4
+        op_off += 4
+
+y2_16 = Arr(16, 0)
+def fixup_dc_coeffs(mbi, coeffs, coeffs_off):
+    y2_off = 0
+
+    vp8_dixie_walsh(coeffs, coeffs_off + 24 * 16, y2_16, y2_off)
+
+    for i in range(16):
+        coeffs[coeffs_off + i * 16] = y2_16[i]
+
+def predict_intra_luma(predict, predict_off, stride, mbi, coeffs, coeffs_off):
+    if (mbi.base.y_mode == B_PRED):
+        b_pred(predict, predict_off, stride, mbi, coeffs, coeffs_off)
+    else:
+        i = int_
+
+        if mbi.base.y_mode == DC_PRED:
+            predict_dc_nxn(predict, predict_off, stride, 16)
+        elif mbi.base.y_mode == V_PRED:
+            predict_v_16x16(predict, predict_off, stride)
+        elif mbi.base.y_mode == H_PRED:
+            predict_h_16x16(predict, predict_off, stride)
+        elif mbi.base.y_mode == TM_PRED:
+            predict_tm_16x16(predict, predict_off, stride)
+        else:
+            ASSERT(0)
+
+        fixup_dc_coeffs(mbi, coeffs, coeffs_off)
+
+        for i in range(16):
+            vp8_dixie_idct_add(predict, predict_off, predict, predict_off, stride, coeffs, coeffs_off)
+            coeffs_off += 16
+            predict_off += 4
+
+            if ((i & 3) == 3):
+                predict_off += stride * 4 - 16
+
+def predict_intra_chroma(predict_u, predict_u_off, predict_v, predict_v_off, stride, mbi, coeffs, coeffs_off):
+    if mbi.base.uv_mode == DC_PRED:
+        predict_dc_nxn(predict_u, predict_u_off, stride, 8)
+        predict_dc_nxn(predict_v, predict_v_off, stride, 8)
+    elif mbi.base.uv_mode == V_PRED:
+        predict_v_8x8(predict_u, predict_u_off, stride)
+        predict_v_8x8(predict_v, predict_v_off, stride)
+    elif mbi.base.uv_mode == H_PRED:
+        predict_h_8x8(predict_u, predict_u_off, stride)
+        predict_h_8x8(predict_v, predict_v_off, stride)
+    elif mbi.base.uv_mode == TM_PRED:
+        predict_tm_8x8(predict_u, predict_u_off, stride)
+        predict_tm_8x8(predict_v, predict_v_off, stride)
+    else:
+        ASSERT(0)
+
+    coeffs_off += 16 * 16
+
+    for i in range(16, 20):
+        vp8_dixie_idct_add(predict_u, predict_u_off, predict_u, predict_u_off, stride, coeffs, coeffs_off)
+        coeffs_off += 16
+        predict_u_off += 4
+
+        if (i & 1):
+            predict_u_off += stride * 4 - 8
+
+    for i in range(20, 24):
+        vp8_dixie_idct_add(predict_v, predict_v_off, predict_v, predict_v_off, stride, coeffs, coeffs_off)
+        coeffs_off += 16
+        predict_v_off += 4
+
+        if (i & 1):
+            predict_v_off += stride * 4 - 8
+
+def calculate_chroma_splitmv(mbi, b, full_pixel):
+    temp = int_
+    mv_ = mv()
+
+    temp = mbi.splitt.mvs[b].d.x + mbi.splitt.mvs[b + 1].d.x + mbi.splitt.mvs[b + 4].d.x + mbi.splitt.mvs[b + 5].d.x
+
+    if (temp < 0):
+        temp -= 4
+    else:
+        temp += 4
+
+    mv_.d.x = int(temp // 8)
+
+    temp = mbi.splitt.mvs[b].d.y + mbi.splitt.mvs[b + 1].d.y + mbi.splitt.mvs[b + 4].d.y + mbi.splitt.mvs[b + 5].d.y
+
+    if (temp < 0):
+        temp -= 4
+    else:
+        temp += 4
+
+    mv_.d.y = int(temp // 8)
+
+    if (full_pixel):
+        mv_.d.x &= ~7
+        mv_.d.y &= ~7
+
+    return mv_
+
+def sixtap_horiz(output, output_off, output_stride, reference, reference_off, reference_stride, cols, rows, filter):
+    temp = int_
+
+    for r in range(rows):
+        for c in range(cols):
+            temp = (reference[reference_off - 2] * filter[0]) + (reference[reference_off - 1] * filter[1]) + (reference[reference_off + 0] * filter[2]) + (reference[reference_off + 1] * filter[3]) + (reference[reference_off + 2] * filter[4]) + (reference[reference_off + 3] * filter[5]) + 64
+            temp >>= 7
+            output[output_off + c] = (temp)
+            reference_off += 1
+
+        reference_off += reference_stride - cols
+        output_off += output_stride
+
+
+def sixtap_vert(output, output_off, output_stride, reference, reference_off, reference_stride, cols, rows, filter):
+    temp = int_
+
+    for r in range(rows):
+        for c in range(cols):
+            temp = (reference[reference_off - 2 * reference_stride] * filter[0]) + (reference[reference_off - 1 * reference_stride] * filter[1]) + (reference[reference_off + 0 * reference_stride] * filter[2]) + (reference[reference_off + 1 * reference_stride] * filter[3]) + (reference[reference_off + 2 * reference_stride] * filter[4]) + (reference[reference_off + 3 * reference_stride] * filter[5]) + 64
+            temp >>= 7
+            output[output_off + c] = (temp)
+            reference_off += 1
+
+        reference_off += reference_stride - cols
+        output_off += output_stride
+
+
+temp_ = [None] * (16 * (16 + 5))
+def sixtap_2d(output, output_off, output_stride, reference, reference_off, reference_stride, cols, rows, mx, my, filters):
+    sixtap_horiz(temp_, 0, 16, reference, reference_off - 2 * reference_stride, reference_stride, cols, rows + 5, filters[mx])
+    sixtap_vert(output, output_off, output_stride, temp_, + 2 * 16, 16, cols, rows, filters[my])
+
+def filter_block(return_off, output, output_off, reference, reference_off, stride, mv_, filters):
+    mx = int_
+    my = int_
+
+    if (not mv_.d.x and not mv_.d.y):
+        return_off[0] = reference_off
+        return reference
+
+    mx = mv_.d.x & 7
+    my = mv_.d.y & 7
+    reference_off += ((mv_.d.y >> 3) * stride) + (mv_.d.x >> 3)
+
+    if (mx | my):
+        sixtap_2d(output, output_off, stride, reference, reference_off, stride, 4, 4, mx, my, filters)
+        reference = output; reference_off = output_off
+
+    return_off[0] = reference_off
+    return reference
+
+def build_mc_border(dst, dst_off, src, src_off, stride, x, y, b_w, b_h, w, h):
+    ref_row = char_
+    ref_row_off = char_
+
+    ref_row = src
+    ref_row_off = src_off - x - y * stride
+
+    if (y >= h):
+        ref_row_off += (h - 1) * stride
+    elif (y > 0):
+        ref_row_off += y * stride
+
+    while True:
+        left = int_
+        right = 0
+        copy = int_
+
+        left = -x if x < 0 else 0
+
+        if (left > b_w):
+            left = b_w
+
+        if (x + b_w > w):
+            right = x + b_w - w
+
+        if (right > b_w):
+            right = b_w
+
+        copy = b_w - left - right
+
+        if (left):
+            memset(dst, dst_off, ref_row[ref_row_off + 0], left)
+
+        if (copy):
+            memcpy(dst, dst_off + left, ref_row, ref_row_off + x + left, copy)
+
+        if (right):
+            memset(dst, dst_off + left + copy, ref_row[ref_row_off + w - 1], right)
+
+        dst_off += stride
+        y += 1
+
+        if (y < h and y > 0):
+            ref_row_off += stride
+
+        b_h -= 1
+        if not b_h:
+            break
+
+def recon_1_edge_block(output, output_off, emul_block, emul_block_off,  reference,reference_off, stride, mv_, filters, coeffs, coeffs_off, mbi, x, y, w, h, start_b):
+    predict = char_
+    predict_off = 0
+    b = start_b
+    b_w = 4
+    b_h = 4
+
+    x += mv_.d.x >> 3
+    y += mv_.d.y >> 3
+
+    if (x < 2 or x + b_w - 1 + 3 >= w or y < 2 or y + b_h - 1 + 3 >= h):
+        reference_off += (mv_.d.x >> 3) + (mv_.d.y >> 3) * stride
+        build_mc_border(emul_block, emul_block_off, reference, reference_off - 2 - 2 * stride, stride, x - 2, y - 2, b_w + 5, b_h + 5, w, h)
+        reference = emul_block; reference_off = emul_block_off + 2 * stride + 2
+        reference_off -= (mv_.d.x >> 3) + (mv_.d.y >> 3) * stride
+    
+    filter_block_return_off = [0]
+
+    predict = filter_block(filter_block_return_off, output, output_off, reference, reference_off, stride, mv_, filters)
+    predict_off = filter_block_return_off[0]
+    vp8_dixie_idct_add(output, output_off, predict, predict_off, stride, coeffs, coeffs_off + 16 * b)
+
+uvmv_1 = mv()
+def predict_inter_emulated_edge(ctx, img, coeffs, coeffs_off, mbi, mb_col, mb_row):
+    emul_block = ctx.frame_strg[0].img.img_data
+    emul_block_off = ctx.frame_strg[0].img.img_data_off
+    reference = char_
+    reference_off = 0
+    output = char_
+    output_off = 0
+    reference_offset = ptrdiff_t
+    w = int_
+    h = int_
+    x = int_
+    y = int_
+    b = int_
+    chroma_mv = Arr_new(4, mv)
+    u = img.u
+    v = img.v
+    u_off = img.u_off
+    v_off = img.v_off
+    full_pixel = (ctx.frame_hdr.version == 3) + 0
+
+
+    x = mb_col * 16
+    y = mb_row * 16
+    w = ctx.mb_cols * 16
+    h = ctx.mb_rows * 16
+    output = img.y
+    output_off = img.y_off
+    reference_offset = ctx.ref_frame_offsets[mbi.base.ref_frame]
+    reference = ctx.ref_frame_offsets_[mbi.base.ref_frame]
+    reference_off = output_off + reference_offset
+
+    if (mbi.base.y_mode != SPLITMV):
+        uvmv = uvmv_1
+
+        uvmv.d.x = mbi.base.mv.d.x
+        uvmv.d.y = mbi.base.mv.d.y
+        uvmv.d.x = (uvmv.d.x + 1) >> 1
+        uvmv.d.y = (uvmv.d.y + 1) >> 1
+
+        if (full_pixel):
+            uvmv.d.x &= ~7
+            uvmv.d.y &= ~7
+
+        chroma_mv[0].d.x = uvmv.d.x
+        chroma_mv[0].d.y = uvmv.d.y
+        chroma_mv[1].d.x = uvmv.d.x
+        chroma_mv[1].d.y = uvmv.d.y
+        chroma_mv[2].d.x = uvmv.d.x
+        chroma_mv[2].d.y = uvmv.d.y
+        chroma_mv[3].d.x = uvmv.d.x
+        chroma_mv[3].d.y = uvmv.d.y
+
+    else:
+        chroma_mv[0] = calculate_chroma_splitmv(mbi, 0, full_pixel)
+        chroma_mv[1] = calculate_chroma_splitmv(mbi, 2, full_pixel)
+        chroma_mv[2] = calculate_chroma_splitmv(mbi, 8, full_pixel)
+        chroma_mv[3] = calculate_chroma_splitmv(mbi, 10, full_pixel)
+
+
+    for b in range(16):
+        if (mbi.base.y_mode != SPLITMV):
+            ymv = mbi.base.mv
+        else:
+            ymv = mbi.splitt.mvs[+ b]
+
+        recon_1_edge_block(output, output_off, emul_block, emul_block_off, reference, reference_off, img.stride, ymv, ctx.subpixel_filters, coeffs, coeffs_off, mbi, x, y, w, h, b)
+
+        x += 4
+        output_off += 4
+        reference_off += 4
+
+        if ((b & 3) == 3):
+            x -= 16
+            y += 4
+            output_off += 4 * img.stride - 16
+            reference_off += 4 * img.stride - 16
+
+    x = mb_col * 16
+    y = mb_row * 16
+
+
+    x >>= 1
+    y >>= 1
+    w >>= 1
+    h >>= 1
+
+    for b in range(4):
+        recon_1_edge_block(u, u_off, emul_block, emul_block_off, reference, u_off + reference_offset, img.uv_stride, chroma_mv[b], ctx.subpixel_filters, coeffs, coeffs_off, mbi, x, y, w, h, b + 16)
+        recon_1_edge_block(v, v_off, emul_block, emul_block_off, reference, v_off + reference_offset, img.uv_stride, chroma_mv[b], ctx.subpixel_filters, coeffs, coeffs_off, mbi, x, y, w, h, b + 20)
+        u_off += 4
+        v_off += 4
+        x += 4
+
+        if (b & 1):
+            x -= 8
+            y += 4
+            u_off += 4 * img.uv_stride - 8
+            v_off += 4 * img.uv_stride - 8
+
+def recon_1_block(output, output_off, reference, reference_off, stride, mv, filters, coeffs, coeffs_off, mbi, b):
+    predict = char_
+    predict_off = 0
+    filter_block_return_off = [0]
+
+    predict = filter_block(filter_block_return_off, output, output_off, reference, reference_off, stride, mv, filters)
+    predict_off = filter_block_return_off[0]
+    vp8_dixie_idct_add(output, output_off, predict, predict_off, stride, coeffs, coeffs_off + 16 * b)
+
+uvmv_2 = mv()
+def predict_inter(ctx, img, coeffs, coeffs_off, mbi):
+    y = img.y
+    y_off = img.y_off
+    u = img.u
+    u_off = img.u_off
+    v = img.v
+    v_off = img.v_off
+    reference = None
+    reference_offset = ptrdiff_t
+    chroma_mv = Arr_new(4, mv)
+    full_pixel = (ctx.frame_hdr.version == 3) + 0
+    b = int_
+
+    if (mbi.base.y_mode != SPLITMV):
+        uvmv = uvmv_2
+
+        uvmv.d.x = mbi.base.mv.d.x; uvmv.d.y = mbi.base.mv.d.y
+        uvmv.d.x = (uvmv.d.x + 1) >> 1
+        uvmv.d.y = (uvmv.d.y + 1) >> 1
+
+        if (full_pixel):
+            uvmv.d.x &= ~7
+            uvmv.d.y &= ~7
+
+        chroma_mv[0].d.x = chroma_mv[1].d.x = chroma_mv[2].d.x = chroma_mv[3].d.x = uvmv.d.x
+        chroma_mv[0].d.y = chroma_mv[1].d.y = chroma_mv[2].d.y = chroma_mv[3].d.y = uvmv.d.y
+
+    else:
+        chroma_mv[0] = calculate_chroma_splitmv(mbi, 0, full_pixel)
+        chroma_mv[1] = calculate_chroma_splitmv(mbi, 2, full_pixel)
+        chroma_mv[2] = calculate_chroma_splitmv(mbi, 8, full_pixel)
+        chroma_mv[3] = calculate_chroma_splitmv(mbi, 10, full_pixel)
+
+    reference_offset = ctx.ref_frame_offsets[mbi.base.ref_frame]; reference = ctx.ref_frame_offsets_[mbi.base.ref_frame]
+
+    for b in range(16):
+        ymv = None
+
+        if (mbi.base.y_mode != SPLITMV):
+            ymv = mbi.base.mv
+        else:
+            ymv = mbi.splitt.mvs[+ b]
+
+
+        recon_1_block(y, y_off, reference, y_off + reference_offset, img.stride, ymv, ctx.subpixel_filters, coeffs, coeffs_off, mbi, b)
+        y_off += 4
+
+        if ((b & 3) == 3):
+            y_off += 4 * img.stride - 16
+
+    for b in range(4):
+        recon_1_block(u, u_off, reference, u_off + reference_offset, img.uv_stride, chroma_mv[b], ctx.subpixel_filters, coeffs, coeffs_off, mbi, b + 16)
+        recon_1_block(v, v_off, reference, v_off + reference_offset, img.uv_stride, chroma_mv[b], ctx.subpixel_filters, coeffs, coeffs_off, mbi, b + 20)
+        u_off += 4
+        v_off += 4
+
+        if (b & 1):
+            u_off += 4 * img.uv_stride - 8
+            v_off += 4 * img.uv_stride - 8
+
+img_1 = img_index()
+def vp8_dixie_predict_process_row(ctx, row, start_col, num_cols):
+    img = img_1
+    mbi, mbi_off = None, 0
+    col = int_
+    coeffs = short_
+    coeffs_off = 0
+
+    img.stride = ctx.ref_frames[CURRENT_FRAME].img.stride[PLANE_Y]
+    img.uv_stride = ctx.ref_frames[CURRENT_FRAME].img.stride[PLANE_U]
+    img.y = ctx.ref_frames[CURRENT_FRAME].img.planes[PLANE_Y]
+    img.y_off = ctx.ref_frames[CURRENT_FRAME].img.planes_off[PLANE_Y]
+    img.u = ctx.ref_frames[CURRENT_FRAME].img.planes[PLANE_U]
+    img.u_off = ctx.ref_frames[CURRENT_FRAME].img.planes_off[PLANE_U]
+    img.v = ctx.ref_frames[CURRENT_FRAME].img.planes[PLANE_V]
+    img.v_off = ctx.ref_frames[CURRENT_FRAME].img.planes_off[PLANE_V]
+    img.y_off += (img.stride * row + start_col) * 16
+    img.u_off += (img.uv_stride * row + start_col) * 8
+    img.v_off += (img.uv_stride * row + start_col) * 8
+    mbi = ctx.mb_info_rows[1 + row]
+    mbi_off = ctx.mb_info_rows_off[1 + row] + start_col
+    coeffs = ctx.tokens[row & (ctx.token_hdr.partitions - 1)].coeffs
+    coeffs_off = + 25 * 16 * start_col
+    
+    if (start_col == 0):
+        fixup_left(img.y, img.y_off, 16, img.stride, row, mbi[mbi_off].base.y_mode)
+        fixup_left(img.u, img.u_off, 8, img.uv_stride, row, mbi[mbi_off].base.uv_mode)
+        fixup_left(img.v, img.v_off, 8, img.uv_stride, row, mbi[mbi_off].base.uv_mode)
+
+        if (row == 0):
+            (img.y[img.y_off - img.stride - 1]) = 127
+    
+    for col in range(start_col, start_col + num_cols):
+        if (row == 0):
+            fixup_above(img.y, img.y_off, 16, img.stride, col, mbi[mbi_off].base.y_mode)
+            fixup_above(img.u, img.u_off, 8, img.uv_stride, col, mbi[mbi_off].base.uv_mode)
+            fixup_above(img.v, img.v_off, 8, img.uv_stride, col, mbi[mbi_off].base.uv_mode)
+
+        if (mbi[mbi_off].base.y_mode <= B_PRED):
+            predict_intra_luma(img.y, img.y_off, img.stride, mbi[mbi_off], coeffs, coeffs_off)
+            predict_intra_chroma(img.u, img.u_off, img.v, img.v_off, img.uv_stride, mbi[mbi_off], coeffs, coeffs_off)
+            
+        else:
+            if (mbi[mbi_off].base.y_mode != SPLITMV):
+                fixup_dc_coeffs(mbi[mbi_off], coeffs, coeffs_off)
+
+            if (mbi[mbi_off].base.need_mc_border):
+                predict_inter_emulated_edge(ctx, img, coeffs, coeffs_off, mbi[mbi_off], col, row)
+            else:
+                predict_inter(ctx, img, coeffs, coeffs_off, mbi[mbi_off])
+
+        mbi_off += 1
+        img.y_off += 16
+        img.u_off += 8
+        img.v_off += 8
+        coeffs_off += 25 * 16
+
+    if (col == ctx.mb_cols):
+        extend = img.y
+        extend_off = (img.y_off + 15 * img.stride)
+        val = img.y[img.y_off - 1 + 15 * img.stride]
+        extend[extend_off] = extend[extend_off + 1] = extend[extend_off + 2] = extend[extend_off + 3] = val
+
+def calculate_filter_parameters(ctx, mbi, edge_limit_, interior_limit_, hev_threshold_):
+    filter_level = int_
+    interior_limit = int_
+    hev_threshold = int_
+
+    filter_level = ctx.loopfilter_hdr.level
+
+    if (ctx.segment_hdr.enabled):
+        if (not ctx.segment_hdr.abs_):
+            filter_level += ctx.segment_hdr.lf_level[mbi.base.segment_id]
+        else:
+            filter_level = ctx.segment_hdr.lf_level[mbi.base.segment_id]
+
+    if (ctx.loopfilter_hdr.delta_enabled):
+        filter_level += ctx.loopfilter_hdr.ref_delta[mbi.base.ref_frame]
+
+        if (mbi.base.ref_frame == CURRENT_FRAME):
+            if (mbi.base.y_mode == B_PRED):
+                filter_level += ctx.loopfilter_hdr.mode_delta[0]
+
+        elif (mbi.base.y_mode == ZEROMV):
+            filter_level += ctx.loopfilter_hdr.mode_delta[1]
+        elif (mbi.base.y_mode == SPLITMV):
+            filter_level += ctx.loopfilter_hdr.mode_delta[3]
+        else:
+            filter_level += ctx.loopfilter_hdr.mode_delta[2]
+
+    if (filter_level > 63):
+        filter_level = 63
+    elif (filter_level < 0):
+        filter_level = 0
+
+    interior_limit = filter_level
+
+    if (ctx.loopfilter_hdr.sharpness):
+        interior_limit >>= 2 if ctx.loopfilter_hdr.sharpness > 4 else 1
+
+        if (interior_limit > 9 - ctx.loopfilter_hdr.sharpness):
+            interior_limit = 9 - ctx.loopfilter_hdr.sharpness
+
+    if (interior_limit < 1):
+        interior_limit = 1
+
+    hev_threshold = (filter_level >= 15)
+
+    if (filter_level >= 40):
+        hev_threshold += 1
+
+    if (filter_level >= 20 and not ctx.frame_hdr.is_keyframe):
+        hev_threshold += 1
+
+    edge_limit_[0] = filter_level
+    interior_limit_[0] = interior_limit
+    hev_threshold_[0] = hev_threshold
+
+def ABS(x):
+    return ((x) if (x) >= 0 else -(x))
+
+def saturate_int8(x):
+    if (x < -128):
+        return -128
+
+    if (x > 127):
+        return 127
+
+    return x
+
+def saturate_uint8(x):
+    if (x < 0):
+        return 0
+
+    if (x > 255):
+        return 255
+
+    return x
+
+def simple_threshold(pixels, pixels_off, stride, filter_limit):
+    p1 = pixels[pixels_off - 2 * stride]
+    p0 = pixels[pixels_off - 1 * stride]
+    q0 = pixels[pixels_off + 0 * stride]
+    q1 = pixels[pixels_off + 1 * stride]
+
+    return (ABS(p0 - q0) * 2 + (ABS(p1 - q1) >> 1)) <= filter_limit
+
+def normal_threshold(pixels, pixels_off, stride, edge_limit, interior_limit):
+    p3 = pixels[pixels_off - 4 * stride]
+    p2 = pixels[pixels_off - 3 * stride]
+    p1 = pixels[pixels_off - 2 * stride]
+    p0 = pixels[pixels_off - 1 * stride]
+    q0 = pixels[pixels_off + 0 * stride]
+    q1 = pixels[pixels_off + 1 * stride]
+    q2 = pixels[pixels_off + 2 * stride]
+    q3 = pixels[pixels_off + 3 * stride]
+
+    E = edge_limit
+    I = interior_limit
+
+    return simple_threshold(pixels, pixels_off, stride, 2 * E + I) and ABS(p3 - p2) <= I and ABS(p2 - p1) <= I and ABS(p1 - p0) <= I and ABS(q3 - q2) <= I and ABS(q2 - q1) <= I and ABS(q1 - q0) <= I
+
+def high_edge_variance(pixels, pixels_off, stride, hev_threshold):
+    p1 = pixels[pixels_off - 2 * stride]
+    p0 = pixels[pixels_off - 1 * stride]
+    q0 = pixels[pixels_off + 0 * stride]
+    q1 = pixels[pixels_off + 1 * stride]
+
+    return ABS(p1 - p0) > hev_threshold or ABS(q1 - q0) > hev_threshold
+
+def filter_common(pixels, pixels_off, stride, use_outer_taps):
+    p1 = pixels[pixels_off - 2 * stride]
+    p0 = pixels[pixels_off - 1 * stride]
+    q0 = pixels[pixels_off + 0 * stride]
+    q1 = pixels[pixels_off + 1 * stride]
+    a = int_
+    f1 = int_
+    f2 = int_
+
+    a = 3 * (q0 - p0)
+
+    if (use_outer_taps):
+        a += saturate_int8(p1 - q1)
+
+    a = saturate_int8(a)
+
+    f1 = (127 if (a + 4 > 127) else a + 4) >> 3
+    f2 = (127 if (a + 3 > 127) else a + 3) >> 3
+
+    p0 = saturate_uint8(p0 + f2)
+    q0 = saturate_uint8(q0 - f1)
+
+    if (not use_outer_taps):
+        a = (f1 + 1) >> 1
+        p1 = saturate_uint8(p1 + a)
+        q1 = saturate_uint8(q1 - a)
+
+    pixels[pixels_off - 2 * stride] = p1
+    pixels[pixels_off - 1 * stride] = p0
+    pixels[pixels_off + 0 * stride] = q0
+    pixels[pixels_off + 1 * stride] = q1
+
+def filter_subblock_v_edge(src, src_off, stride, edge_limit, interior_limit, hev_threshold, size):
+    for i in range(8 * size):
+        if (normal_threshold(src, src_off, 1, edge_limit, interior_limit)):
+            filter_common(src, src_off, 1, high_edge_variance(src, src_off, 1, hev_threshold))
+
+        src_off += stride
+
+def filter_mb_h_edge(src, src_off, stride, edge_limit, interior_limit, hev_threshold, size):
+    for i in range(8 * size):
+        if (normal_threshold(src, src_off, stride, edge_limit, interior_limit)):
+            if (high_edge_variance(src, src_off, stride, hev_threshold)):
+                filter_common(src, src_off, stride, 1)
+            else:
+                filter_mb_edge(src, src_off, stride)
+
+        src_off += 1
+
+def filter_subblock_h_edge(src, src_off, stride, edge_limit, interior_limit, hev_threshold, size):
+    for i in range(8 * size):
+        if (normal_threshold(src, src_off, stride, edge_limit, interior_limit)):
+            filter_common(src, src_off, stride, high_edge_variance(src, src_off, stride, hev_threshold))
+
+        src_off += 1
+        
+def filter_v_edge_simple(src, src_off, stride, filter_limit):
+    for i in range(16):
+        if (simple_threshold(src, src_off, 1, filter_limit)):
+            filter_common(src, src_off, 1, 1)
+
+        src_off += stride
+
+def filter_h_edge_simple(src, src_off, stride, filter_limit):
+
+    for i in range(16):
+        if (simple_threshold(src, src_off, stride, filter_limit)):
+            filter_common(src, src_off, stride, 1)
+
+        src_off += 1
+
+def filter_mb_edge(pixels, pixels_off, stride):
+    p2 = pixels[pixels_off - 3 * stride]
+    p1 = pixels[pixels_off - 2 * stride]
+    p0 = pixels[pixels_off - 1 * stride]
+    q0 = pixels[pixels_off + 0 * stride]
+    q1 = pixels[pixels_off + 1 * stride]
+    q2 = pixels[pixels_off + 2 * stride]
+    w = int_
+    a = int_
+
+    w = saturate_int8(saturate_int8(p1 - q1) + 3 * (q0 - p0))
+
+    a = (27 * w + 63) >> 7
+    p0 = saturate_uint8(p0 + a)
+    q0 = saturate_uint8(q0 - a)
+
+    a = (18 * w + 63) >> 7
+    p1 = saturate_uint8(p1 + a)
+    q1 = saturate_uint8(q1 - a)
+
+    a = (9 * w + 63) >> 7
+    p2 = saturate_uint8(p2 + a)
+    q2 = saturate_uint8(q2 - a)
+
+    pixels[pixels_off - 3 * stride] = p2
+    pixels[pixels_off - 2 * stride] = p1
+    pixels[pixels_off - 1 * stride] = p0
+    pixels[pixels_off + 0 * stride] = q0
+    pixels[pixels_off + 1 * stride] = q1
+    pixels[pixels_off + 2 * stride] = q2
+
+def filter_mb_v_edge(src, src_off, stride, edge_limit, interior_limit, hev_threshold, size):
+    for i in range(8 * size):
+        if (normal_threshold(src, src_off, 1, edge_limit, interior_limit)):
+            if (high_edge_variance(src, src_off, 1, hev_threshold)):
+                filter_common(src, src_off, 1, 1)
+            else:
+                filter_mb_edge(src, src_off, 1)
+
+        src_off += stride
+
+
+
+def filter_row_normal(ctx, row, start_col, num_cols):
+    y = char_
+    u = char_
+    v = char_
+    y_off = 0
+    u_off = 0
+    v_off = 0
+    stride = int_
+    uv_stride = int_
+    mbi = None
+    mbi_off = 0
+    col = int_
+
+    stride = ctx.ref_frames[CURRENT_FRAME].img.stride[PLANE_Y]
+    uv_stride = ctx.ref_frames[CURRENT_FRAME].img.stride[PLANE_U]
+    y = ctx.ref_frames[CURRENT_FRAME].img.planes[PLANE_Y]
+    y_off = ctx.ref_frames[CURRENT_FRAME].img.planes_off[PLANE_Y]
+    u = ctx.ref_frames[CURRENT_FRAME].img.planes[PLANE_U]
+    u_off = ctx.ref_frames[CURRENT_FRAME].img.planes_off[PLANE_U]
+    v = ctx.ref_frames[CURRENT_FRAME].img.planes[PLANE_V]
+    v_off = ctx.ref_frames[CURRENT_FRAME].img.planes_off[PLANE_V]
+    y_off += (stride * row + start_col) * 16
+    u_off += (uv_stride * row + start_col) * 8
+    v_off += (uv_stride * row + start_col) * 8
+    mbi = ctx.mb_info_rows[1 + row]
+    mbi_off = ctx.mb_info_rows_off[1 + row] + start_col
+
+    for col in range(start_col, start_col + num_cols):
+        edge_limit = [int_]
+        interior_limit = [int_]
+        hev_threshold = [int_]
+
+        calculate_filter_parameters(ctx, mbi[mbi_off], edge_limit, interior_limit, hev_threshold)
+        edge_limit = edge_limit[0]
+        interior_limit = interior_limit[0]
+        hev_threshold = hev_threshold[0]
+
+        if (edge_limit):
+            if (col):
+                filter_mb_v_edge(y, y_off, stride, edge_limit + 2, interior_limit, hev_threshold, 2)
+                filter_mb_v_edge(u, u_off, uv_stride, edge_limit + 2, interior_limit, hev_threshold, 1)
+                filter_mb_v_edge(v, v_off, uv_stride, edge_limit + 2, interior_limit, hev_threshold, 1)
+
+            if (mbi[mbi_off].base.eob_mask or mbi[mbi_off].base.y_mode == SPLITMV or mbi[mbi_off].base.y_mode == B_PRED):
+                filter_subblock_v_edge(y, y_off + 4, stride, edge_limit, interior_limit, hev_threshold, 2)
+                filter_subblock_v_edge(y, y_off + 8, stride, edge_limit, interior_limit, hev_threshold, 2)
+                filter_subblock_v_edge(y, y_off + 12, stride, edge_limit, interior_limit, hev_threshold, 2)
+                filter_subblock_v_edge(u, u_off + 4, uv_stride, edge_limit, interior_limit, hev_threshold, 1)
+                filter_subblock_v_edge(v, v_off + 4, uv_stride, edge_limit, interior_limit, hev_threshold, 1)
+
+            if (row):
+                filter_mb_h_edge(y, y_off, stride, edge_limit + 2, interior_limit, hev_threshold, 2)
+                filter_mb_h_edge(u, u_off, uv_stride, edge_limit + 2, interior_limit, hev_threshold, 1)
+                filter_mb_h_edge(v, v_off, uv_stride, edge_limit + 2, interior_limit, hev_threshold, 1)
+
+            if (mbi[mbi_off].base.eob_mask or mbi[mbi_off].base.y_mode == SPLITMV or mbi[mbi_off].base.y_mode == B_PRED):
+                filter_subblock_h_edge(y, y_off + 4 * stride, stride, edge_limit, interior_limit, hev_threshold, 2)
+                filter_subblock_h_edge(y, y_off + 8 * stride, stride, edge_limit, interior_limit, hev_threshold, 2)
+                filter_subblock_h_edge(y, y_off + 12 * stride, stride, edge_limit, interior_limit, hev_threshold, 2)
+                filter_subblock_h_edge(u, u_off + 4 * uv_stride, uv_stride, edge_limit, interior_limit, hev_threshold, 1)
+                filter_subblock_h_edge(v, v_off + 4 * uv_stride, uv_stride, edge_limit, interior_limit, hev_threshold, 1)
+
+        y_off += 16
+        u_off += 8
+        v_off += 8
+        mbi_off += 1
+
+
+def filter_row_simple(ctx, row, start_col, num_cols):
+    y = char_
+    y_off = 0
+    stride = int_
+    mbi = None
+    mbi_off = 0
+    col = int_
+
+    stride = ctx.ref_frames[CURRENT_FRAME].img.stride[PLANE_Y]
+    y = ctx.ref_frames[CURRENT_FRAME].img.planes[PLANE_Y]
+    y_off = ctx.ref_frames[CURRENT_FRAME].img.planes_off[PLANE_Y]
+    y_off += (stride * row + start_col) * 16
+
+    mbi = ctx.mb_info_rows[1 + row]
+    mbi_off = ctx.mb_info_rows_off[1 + row] + start_col
+
+    for col in range(start_col, start_col + num_cols):
+        edge_limit = [int_]
+        interior_limit = [int_]
+        hev_threshold = [int_]
+
+        calculate_filter_parameters(ctx, mbi[mbi_off], edge_limit, interior_limit, hev_threshold)
+
+        if (edge_limit[0]):
+            filter_subblocks = (mbi[mbi_off].base.eob_mask or mbi[mbi_off].base.y_mode == SPLITMV or mbi[mbi_off].base.y_mode == B_PRED) + 0
+            mb_limit = (edge_limit[0] + 2) * 2 + interior_limit[0]
+            b_limit = edge_limit[0] * 2 + interior_limit[0]
+
+            if (col):
+                filter_v_edge_simple(y, y_off, stride, mb_limit)
+
+            if (filter_subblocks):
+                filter_v_edge_simple(y, y_off + 4, stride, b_limit)
+                filter_v_edge_simple(y, y_off + 8, stride, b_limit)
+                filter_v_edge_simple(y, y_off + 12, stride, b_limit)
+
+            if (row):
+                filter_h_edge_simple(y, y_off, stride, mb_limit)
+
+            if (filter_subblocks):
+                filter_h_edge_simple(y, y_off + 4 * stride, stride, b_limit)
+                filter_h_edge_simple(y, y_off + 8 * stride, stride, b_limit)
+                filter_h_edge_simple(y, y_off + 12 * stride, stride, b_limit)
+
+        y_off += 16
+        mbi_off += 1
+
+
+def vp8_dixie_loopfilter_process_row(ctx, row, start_col, num_cols):
+    if (ctx.loopfilter_hdr.use_simple):
+        filter_row_simple(ctx, row, start_col, num_cols)
+    else:
+        filter_row_normal(ctx, row, start_col, num_cols)
+
+def vp8_dixie_ref_frame(rcimg):
+    rcimg.ref_cnt += 1
+    return rcimg
 
 bool_1 = bool_decoder()
 def decode_frame(ctx, data, data_off, sz):
@@ -3130,7 +4904,10 @@ def main(AJAX_response):
     
     decoder2 = vp8_decoder_ctx()
     
-    def readframe(ii):
+    ii = 0
+    def readframe():
+        nonlocal buf, buf_sz, ii
+        
         isframe = not read_frame(input, buf, buf_off, buf_sz, buf_alloc_sz)
         if isframe:
             # sleep?
@@ -3148,9 +4925,9 @@ def main(AJAX_response):
                     vpximg2canvas(img)
                 ii += 1
                 print('FRAME ' + ii)
-            readframe(ii)
+            readframe()
 
-    readframe(0)
+    readframe()
 
 def fileInput(file):
     print('Got file input: ' + file)
