@@ -5,6 +5,12 @@ def vpximg2canvas(img):
 
 
 
+def strcmp(str1, str2):
+    return (0 if (str1 == str2) else (1 if (str1 > str2) else -1))
+
+ptr = 0
+
+VP8_FOURCC = (0x00385056)
 char_, short_, int_, long_, void_ = 0, 0, 0, 0, 0
 int8_t = char_
 uint8_t = char_
@@ -29,6 +35,22 @@ RAW_FILE, IVF_FILE, WEBM_FILE = 0, 1, 2
 MB_FEATURE_TREE_PROBS, MAX_MB_SEGMENTS = 3, 4
 BLOCK_CONTEXTS = 4
 MAX_PARTITIONS = 8
+
+NESTEGG_TRACK_VIDEO = 0
+NESTEGG_TRACK_AUDIO = 1
+
+NESTEGG_CODEC_VP8 = 0
+NESTEGG_CODEC_VORBIS = 1
+
+NESTEGG_SEEK_SET = 0
+NESTEGG_SEEK_CUR = 1
+NESTEGG_SEEK_END = 2
+
+NESTEGG_LOG_DEBUG = 1
+NESTEGG_LOG_INFO = 10
+NESTEGG_LOG_WARNING = 100
+NESTEGG_LOG_ERROR = 1000
+NESTEGG_LOG_CRITICAL = 10000
 
 BLOCK_TYPES, PREV_COEF_CONTEXTS, COEF_BANDS, ENTROPY_NODES = 4, 3, 8, 11
 
@@ -128,6 +150,13 @@ LACING_XIPH = 1
 LACING_FIXED = 2
 LACING_EBML = 3
 
+EXIT_SUCCESS = 0
+EXIT_FAILURE = 1
+
+SEEK_CUR = 1
+SEEK_END = 2
+SEEK_SET = 0
+
 TRACK_TYPE_VIDEO = 1
 TRACK_TYPE_AUDIO = 2
 
@@ -142,6 +171,156 @@ FRAME_HEADER_SZ, KEYFRAME_HEADER_SZ = 3, 7
 
 DC_PRED, V_PRED, H_PRED, TM_PRED, B_PRED, NEARESTMV, NEARMV, ZEROMV, NEWMV, SPLITMV, MB_MODE_COUNT = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
 B_DC_PRED, B_TM_PRED, B_VE_PRED, B_HE_PRED, B_LD_PRED, B_RD_PRED, B_VR_PRED, B_VL_PRED, B_HD_PRED, B_HU_PRED, LEFT4X4, ABOVE4X4, ZERO4X4, NEW4X4, B_MODE_COUNT = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
+
+
+def create_ebml_element_desc(Arr):
+    newArr = []
+    for i in range(len(Arr)):
+        a = 0
+        createitem = ebml_element_desc()
+
+        for key in createitem:
+            if (Arr[i][a] != 'undefined'):
+                a += 1
+                createitem[key] = Arr[i][a]
+
+        newArr.append(createitem);
+
+    return newArr
+
+def E_SINGLE_MASTER(ID, _ID, TYPE, STRUCT, FIELD, NE_FIELD_ELEMENTS):
+    return [ID, _ID, TYPE, FIELD, DESC_FLAG_NONE, NE_FIELD_ELEMENTS, 0, 0]
+
+def E_SINGLE_MASTER_O(ID, _ID, TYPE, STRUCT, FIELD, NE_FIELD_ELEMENTS):
+    return [ID, _ID, TYPE, FIELD, DESC_FLAG_OFFSET, NE_FIELD_ELEMENTS, 0, FIELD + '_offset']
+
+E_LAST = [None, 0, 0, 0, DESC_FLAG_NONE, None, 0, 0]
+
+def E_FIELD(ID, _ID, TYPE, STRUCT, FIELD):
+    return [ID, _ID, TYPE, FIELD, DESC_FLAG_NONE, None, 0, 0]
+
+def E_MASTER(ID, _ID, TYPE, STRUCT, FIELD, NE_FIELD_ELEMENTS):
+    return [ID, _ID, TYPE, FIELD, DESC_FLAG_MULTI, NE_FIELD_ELEMENTS, 1, 0]
+
+def E_SUSPEND(ID, _ID, TYPE):
+    return [ID, _ID, TYPE, 0, DESC_FLAG_SUSPEND, None, 0, 0]
+
+
+ne_ebml_elements = create_ebml_element_desc([
+    E_FIELD('ID_EBML_VERSION', ID_EBML_VERSION, TYPE_UINT, 'ebml', 'ebml_version'),
+    E_FIELD('ID_EBML_READ_VERSION', ID_EBML_READ_VERSION, TYPE_UINT, 'ebml', 'ebml_read_version'),
+    E_FIELD('ID_EBML_MAX_ID_LENGTH', ID_EBML_MAX_ID_LENGTH, TYPE_UINT, 'ebml', 'ebml_max_id_length'),
+    E_FIELD('ID_EBML_MAX_SIZE_LENGTH', ID_EBML_MAX_SIZE_LENGTH, TYPE_UINT, 'ebml', 'ebml_max_size_length'),
+    E_FIELD('ID_DOCTYPE', ID_DOCTYPE, TYPE_STRING, 'ebml', 'doctype'),
+    E_FIELD('ID_DOCTYPE_VERSION', ID_DOCTYPE_VERSION, TYPE_UINT, 'ebml', 'doctype_version'),
+    E_FIELD('ID_DOCTYPE_READ_VERSION', ID_DOCTYPE_READ_VERSION, TYPE_UINT, 'ebml', 'doctype_read_version'),
+    E_LAST
+])
+
+ne_seek_elements = create_ebml_element_desc([
+    E_FIELD('ID_SEEK_ID', ID_SEEK_ID, TYPE_BINARY, 'seek', 'id'),
+    E_FIELD('ID_SEEK_POSITION', ID_SEEK_POSITION, TYPE_UINT, 'seek', 'position'),
+    E_LAST
+])
+
+ne_seek_head_elements = create_ebml_element_desc([
+    E_MASTER('ID_SEEK', ID_SEEK, TYPE_MASTER, 'seek_head', 'seek', ne_seek_elements),
+    E_LAST
+])
+
+ne_info_elements = create_ebml_element_desc([
+    E_FIELD('ID_TIMECODE_SCALE', ID_TIMECODE_SCALE, TYPE_UINT, 'info', 'timecode_scale'),
+    E_FIELD('ID_DURATION', ID_DURATION, TYPE_FLOAT, 'info', 'duration'),
+    E_LAST
+])
+
+ne_block_group_elements = create_ebml_element_desc([
+    E_SUSPEND('ID_BLOCK', ID_BLOCK, TYPE_BINARY),
+    E_FIELD('ID_BLOCK_DURATION', ID_BLOCK_DURATION, TYPE_UINT, 'block_group', 'duration'),
+    E_FIELD('ID_REFERENCE_BLOCK', ID_REFERENCE_BLOCK, TYPE_INT, 'block_group', 'reference_block'),
+    E_LAST
+])
+
+ne_cluster_elements = create_ebml_element_desc([
+    E_FIELD('ID_TIMECODE', ID_TIMECODE, TYPE_UINT, 'cluster', 'timecode'),
+    E_MASTER('ID_BLOCK_GROUP', ID_BLOCK_GROUP, TYPE_MASTER, 'cluster', 'block_group', ne_block_group_elements),
+    E_SUSPEND('ID_SIMPLE_BLOCK', ID_SIMPLE_BLOCK, TYPE_BINARY),
+    E_LAST
+])
+
+ne_video_elements = create_ebml_element_desc([
+    E_FIELD('ID_PIXEL_WIDTH', ID_PIXEL_WIDTH, TYPE_UINT, 'video', 'pixel_width'),
+    E_FIELD('ID_PIXEL_HEIGHT', ID_PIXEL_HEIGHT, TYPE_UINT, 'video', 'pixel_height'),
+    E_FIELD('ID_PIXEL_CROP_BOTTOM', ID_PIXEL_CROP_BOTTOM, TYPE_UINT, 'video', 'pixel_crop_bottom'),
+    E_FIELD('ID_PIXEL_CROP_TOP', ID_PIXEL_CROP_TOP, TYPE_UINT, 'video', 'pixel_crop_top'),
+    E_FIELD('ID_PIXEL_CROP_LEFT', ID_PIXEL_CROP_LEFT, TYPE_UINT, 'video', 'pixel_crop_left'),
+    E_FIELD('ID_PIXEL_CROP_RIGHT', ID_PIXEL_CROP_RIGHT, TYPE_UINT, 'video', 'pixel_crop_right'),
+    E_FIELD('ID_DISPLAY_WIDTH', ID_DISPLAY_WIDTH, TYPE_UINT, 'video', 'display_width'),
+    E_FIELD('ID_DISPLAY_HEIGHT', ID_DISPLAY_HEIGHT, TYPE_UINT, 'video', 'display_height'),
+    E_LAST
+])
+
+ne_audio_elements = create_ebml_element_desc([
+    E_FIELD('ID_SAMPLING_FREQUENCY', ID_SAMPLING_FREQUENCY, TYPE_FLOAT, 'audio', 'sampling_frequency'),
+    E_FIELD('ID_CHANNELS', ID_CHANNELS, TYPE_UINT, 'audio', 'channels'),
+    E_FIELD('ID_BIT_DEPTH', ID_BIT_DEPTH, TYPE_UINT, 'audio', 'bit_depth'),
+    E_LAST
+]);
+
+ne_track_entry_elements = create_ebml_element_desc([
+    E_FIELD('ID_TRACK_NUMBER', ID_TRACK_NUMBER, TYPE_UINT, 'track_entry', 'number'),
+    E_FIELD('ID_TRACK_UID', ID_TRACK_UID, TYPE_UINT, 'track_entry', 'uid'),
+    E_FIELD('ID_TRACK_TYPE', ID_TRACK_TYPE, TYPE_UINT, 'track_entry', 'type'),
+    E_FIELD('ID_FLAG_ENABLED', ID_FLAG_ENABLED, TYPE_UINT, 'track_entry', 'flag_enabled'),
+    E_FIELD('ID_FLAG_DEFAULT', ID_FLAG_DEFAULT, TYPE_UINT, 'track_entry', 'flag_default'),
+    E_FIELD('ID_FLAG_LACING', ID_FLAG_LACING, TYPE_UINT, 'track_entry', 'flag_lacing'),
+    E_FIELD('ID_TRACK_TIMECODE_SCALE', ID_TRACK_TIMECODE_SCALE, TYPE_FLOAT, 'track_entry', 'track_timecode_scale'),
+    E_FIELD('ID_LANGUAGE', ID_LANGUAGE, TYPE_STRING, 'track_entry', 'language'),
+    E_FIELD('ID_CODEC_ID', ID_CODEC_ID, TYPE_STRING, 'track_entry', 'codec_id'),
+    E_FIELD('ID_CODEC_PRIVATE', ID_CODEC_PRIVATE, TYPE_BINARY, 'track_entry', 'codec_private'),
+    E_SINGLE_MASTER('ID_VIDEO', ID_VIDEO, TYPE_MASTER, 'track_entry', 'video', ne_video_elements),
+    E_SINGLE_MASTER('ID_AUDIO', ID_AUDIO, TYPE_MASTER, 'track_entry', 'audio', ne_audio_elements),
+    E_LAST
+])
+
+ne_tracks_elements = create_ebml_element_desc([
+    E_MASTER('ID_TRACK_ENTRY', ID_TRACK_ENTRY, TYPE_MASTER, 'tracks', 'track_entry', ne_track_entry_elements),
+    E_LAST
+])
+
+ne_cue_track_positions_elements = create_ebml_element_desc([
+    E_FIELD('ID_CUE_TRACK', ID_CUE_TRACK, TYPE_UINT, 'cue_track_positions', 'track'),
+    E_FIELD('ID_CUE_CLUSTER_POSITION', ID_CUE_CLUSTER_POSITION, TYPE_UINT, 'cue_track_positions', 'cluster_position'),
+    E_FIELD('ID_CUE_BLOCK_NUMBER', ID_CUE_BLOCK_NUMBER, TYPE_UINT, 'cue_track_positions', 'block_number'),
+    E_LAST
+])
+
+ne_cue_point_elements = create_ebml_element_desc([
+    E_FIELD('ID_CUE_TIME', ID_CUE_TIME, TYPE_UINT, 'cue_point', 'time'),
+    E_MASTER('ID_CUE_TRACK_POSITIONS', ID_CUE_TRACK_POSITIONS, TYPE_MASTER, 'cue_point', 'cue_track_positions', ne_cue_track_positions_elements),
+    E_LAST
+])
+
+ne_cues_elements = create_ebml_element_desc([
+    E_MASTER('ID_CUE_POINT', ID_CUE_POINT, TYPE_MASTER, 'cues', 'cue_point', ne_cue_point_elements),
+    E_LAST
+])
+
+ne_segment_elements = create_ebml_element_desc([
+    E_MASTER('ID_SEEK_HEAD', ID_SEEK_HEAD, TYPE_MASTER, 'segment', 'seek_head', ne_seek_head_elements),
+    E_SINGLE_MASTER('ID_INFO', ID_INFO, TYPE_MASTER, 'segment', 'info', ne_info_elements),
+    E_MASTER('ID_CLUSTER', ID_CLUSTER, TYPE_MASTER, 'segment', 'cluster', ne_cluster_elements),
+    E_SINGLE_MASTER('ID_TRACKS', ID_TRACKS, TYPE_MASTER, 'segment', 'tracks', ne_tracks_elements),
+    E_SINGLE_MASTER('ID_CUES', ID_CUES, TYPE_MASTER, 'segment', 'cues', ne_cues_elements),
+    E_LAST
+]);
+
+ne_top_level_elements = create_ebml_element_desc([
+    E_SINGLE_MASTER('ID_EBML', ID_EBML, TYPE_MASTER, 'nestegg', 'ebml', ne_ebml_elements),
+    E_SINGLE_MASTER_O('ID_SEGMENT', ID_SEGMENT, TYPE_MASTER, 'nestegg', 'segment', ne_segment_elements),
+    E_LAST
+])
+
 
 sixtap_filters = [
     [0, 0, 128, 0, 0, 0],
@@ -925,6 +1104,18 @@ def CHECK_FOR_UPDATE(lval, rval, update_flag):
     update_flag[0] |= (old != lval)
     return lval
 
+
+class nestegg_video_params:
+    def __init__(self):
+        self.width = int_
+        self.height = int_
+        self.display_width = int_
+        self.display_height = int_
+        self.crop_bottom = int_
+        self.crop_top = int_
+        self.crop_left = int_
+        self.crop_right = int_
+
 class ebml_element_desc:
     def __init__(self):
         self.name = char_
@@ -1255,7 +1446,7 @@ class nestegg_packet:
 
 def nestegg_free_packet(pkt):
     frame = None
-    
+
     while hasattr(pkt, 'frame') and pkt.frame:
         frame = pkt.frame
         pkt.frame = frame.next
@@ -1265,6 +1456,8 @@ def nestegg_free_packet(pkt):
     pkt = ''
 
 def ne_io_read(io, buffer, length):
+    print(vars(io))
+    print(io.read)
     r = io.read(buffer, length, io.userdata)
     return r
 
@@ -1329,7 +1522,7 @@ def ne_read_element(ctx, id, size):
 def ne_peek_element(ctx, id, size):
     r = int_
     
-    if ctx.late_id and ctx.last_size:
+    if ctx.last_id and ctx.last_size:
         if id:
             id[0] = ctx.last_id
         if size:
@@ -4884,6 +5077,242 @@ def vp8_dixie_decode_frame(ctx, data, sz):
     
     return ctx_.error.error_code
 
+def feof(stream):
+    if (stream.data.length < stream.data_off):
+        return 1
+    return 0
+
+def nestegg_read_cb(buffer, length, userdata):
+    f = userdata
+
+    if (fread(buffer, 1, length, f) < length):
+        if (feof(f)):
+            return 0
+            
+    return 1
+
+def nestegg_seek_cb(offset, whence, userdata):
+    if whence == NESTEGG_SEEK_SET:
+        whence = SEEK_SET
+    elif whence == NESTEGG_SEEK_CUR:
+        whence = SEEK_CUR
+    elif whence == NESTEGG_SEEK_END:
+        whence = SEEK_END
+
+    return 0 #(-1 if fseek(userdata, offset, whence) else 0)
+
+def ftell(stream):
+    return stream.data_off
+
+def nestegg_tell_cb(userdata):
+    return ftell(userdata)
+
+def nestegg_destroy(ctx):
+    pass
+
+def ne_get_string(type, value):
+    if (not type.read):
+        return -1
+
+    ASSERT(type.type == TYPE_STRING)
+
+    value[0] = type.v.s
+
+    return 0
+
+ctx_ = nestegg()
+def nestegg_init(context, io, callback):
+    r = int_
+    id = [0]
+    version = [0]
+    docversion = [uint64_t]
+    track = None
+    doctype = [char_]
+    ctx = ctx_
+
+    if (not (io.read and io.seek and io.tell)):
+        return -1
+
+    r = ne_peek_element(ctx, id, None);
+    if (r != 1):
+        nestegg_destroy(ctx)
+        return -1
+
+    if (id[0] != ID_EBML):
+        nestegg_destroy(ctx)
+        return -1
+
+    ne_ctx_push(ctx, ne_top_level_elements, ctx)
+
+    r = ne_parse(ctx, None)
+
+    if (r != 1):
+        nestegg_destroy(ctx)
+        return -1
+
+    if (ne_get_uint(ctx.ebml.ebml_read_version, version) != 0):
+        version = 1
+    if (version[0] != 1):
+        nestegg_destroy(ctx)
+        return -1
+
+    if (ne_get_string(ctx.ebml.doctype, doctype) != 0):
+        doctype[0] = "matroska"
+    if (strcmp(doctype[0], "webm") != 0):
+        nestegg_destroy(ctx)
+        return -1
+
+    if (ne_get_uint(ctx.ebml.doctype_read_version, docversion) != 0):
+        docversion[0] = 1
+    if (docversion[0] < 1 or docversion[0] > 2):
+        nestegg_destroy(ctx)
+        return -1
+
+    if (not ctx.segment.tracks.track_entry.head):
+        nestegg_destroy(ctx)
+        return -1
+
+    track = ctx.segment.tracks.track_entry.head
+    ctx.track_count = 0
+
+    while (track):
+        ctx.track_count += 1
+        track = track.next
+
+    context[0] = ctx
+
+    return 0
+
+def nestegg_track_count(ctx, tracks):
+    tracks[0] = ctx.track_count
+    return 0
+
+def nestegg_track_type(ctx, track):
+    type = [uint64_t]
+
+    entry = ne_find_track_entry(ctx, track)
+    if (not entry):
+        return -1
+
+    if (ne_get_uint(entry.type, type) != 0):
+        return -1
+
+    if (type[0] & TRACK_TYPE_VIDEO):
+        return NESTEGG_TRACK_VIDEO
+
+    if (type[0] & TRACK_TYPE_AUDIO):
+        return NESTEGG_TRACK_AUDIO
+
+    return -1
+
+def nestegg_track_codec_id(ctx, track):
+    codec_id = [char_]
+
+    entry = ne_find_track_entry(ctx, track)
+    if (not entry):
+        return -1
+
+    if (ne_get_string(entry.codec_id, codec_id) != 0):
+        return -1
+
+    if (strcmp(codec_id[0], TRACK_ID_VP8) == 0):
+        return NESTEGG_CODEC_VP8
+
+    if (strcmp(codec_id[0], TRACK_ID_VORBIS) == 0):
+        return NESTEGG_CODEC_VORBIS
+
+    return -1
+
+def nestegg_track_video_params(ctx, track, params):
+    value = [uint64_t]
+
+    entry = ne_find_track_entry(ctx, track)
+    if (not entry):
+        return -1
+
+    if (nestegg_track_type(ctx, track) != NESTEGG_TRACK_VIDEO):
+        return -1
+
+    if (ne_get_uint(entry.video.pixel_width, value) != 0):
+        return -1
+    params.width = value[0]
+
+    if (ne_get_uint(entry.video.pixel_height, value) != 0):
+        return -1
+    params.height = value[0]
+
+    value[0] = 0
+    ne_get_uint(entry.video.pixel_crop_bottom, value)
+    params.crop_bottom = value[0]
+
+    value[0] = 0
+    ne_get_uint(entry.video.pixel_crop_top, value)
+    params.crop_top = value[0]
+
+    value[0] = 0
+    ne_get_uint(entry.video.pixel_crop_left, value)
+    params.crop_left = value[0]
+
+    value[0] = 0
+    ne_get_uint(entry.video.pixel_crop_right, value)
+    params.crop_right = value[0]
+
+    value[0] = params.width
+    ne_get_uint(entry.video.display_width, value)
+    params.display_width = value[0]
+
+    value[0] = params.height
+    ne_get_uint(entry.video.display_height, value)
+    params.display_height = value[0]
+
+    return 0
+
+def file_is_webm(input, fourcc, width, height, fps_den, fps_num):
+    i = int_
+    n = [int_]
+    track_type = -1
+
+    io = {
+        "read": nestegg_read_cb,
+        "seek": nestegg_seek_cb,
+        "tell": nestegg_tell_cb,
+        "userdata": input.infile
+    }
+    
+    params = nestegg_video_params()
+    input.nestegg_ctx = [input.nestegg_ctx]
+    
+    if (nestegg_init(input.nestegg_ctx, io, None)):
+        print('goto fail')
+        
+    input.nestegg_ctx = input.nestegg_ctx[0]
+
+    if (nestegg_track_count(input.nestegg_ctx, n)):
+        print('goto fail')
+
+    for i in range(n):
+        track_type = nestegg_track_type(input.nestegg_ctx, i)
+
+        if (track_type == NESTEGG_TRACK_VIDEO):
+            break
+        elif (track_type < 0):
+            print('goto fail')
+
+    if (nestegg_track_codec_id(input.nestegg_ctx, i) != NESTEGG_CODEC_VP8):
+        raise NameError("Not VP8 video, quitting.")
+
+    input.video_track = i
+
+    if (nestegg_track_video_params(input.nestegg_ctx, i, params)):
+        print('goto fail')
+
+    fps_den[0] = 0
+    fps_num[0] = 0
+    fourcc[0] = VP8_FOURCC
+    width[0] = params.width
+    height[0] = params.height
+    return 1
+
 
 def main(AJAX_response):
     buf, buf_off = [None], [None]
@@ -4900,7 +5329,11 @@ def main(AJAX_response):
     
     input.infile = infile
     
-    input.kind = WEBM_FILE
+    if (file_is_webm(input, fourcc, width, height, fps_den, fps_num)):
+        input.kind = WEBM_FILE
+    else:
+        print("Unrecognized input file type.")
+        return EXIT_FAILURE
     
     decoder2 = vp8_decoder_ctx()
     
