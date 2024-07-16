@@ -172,6 +172,16 @@ FRAME_HEADER_SZ, KEYFRAME_HEADER_SZ = 3, 7
 DC_PRED, V_PRED, H_PRED, TM_PRED, B_PRED, NEARESTMV, NEARMV, ZEROMV, NEWMV, SPLITMV, MB_MODE_COUNT = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
 B_DC_PRED, B_TM_PRED, B_VE_PRED, B_HE_PRED, B_LD_PRED, B_RD_PRED, B_VR_PRED, B_VL_PRED, B_HD_PRED, B_HU_PRED, LEFT4X4, ABOVE4X4, ZERO4X4, NEW4X4, B_MODE_COUNT = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
 
+class ebml_element_desc:
+    def __init__(self):
+        self.name = char_
+        self.id = uint64_t
+        self.type = 0
+        self.offset = size_t
+        self.flags = int_
+        self.children = None
+        self.size = size_t
+        self.data_offset = size_t
 
 def create_ebml_element_desc(Arr):
     newArr = []
@@ -179,12 +189,12 @@ def create_ebml_element_desc(Arr):
         a = 0
         createitem = ebml_element_desc()
 
-        for key in createitem:
+        for key in vars(createitem):
             if (Arr[i][a] != 'undefined'):
+                setattr(createitem, key, Arr[i][a])
                 a += 1
-                createitem[key] = Arr[i][a]
 
-        newArr.append(createitem);
+        newArr.append(createitem)
 
     return newArr
 
@@ -1116,17 +1126,6 @@ class nestegg_video_params:
         self.crop_left = int_
         self.crop_right = int_
 
-class ebml_element_desc:
-    def __init__(self):
-        self.name = char_
-        self.id = uint64_t
-        self.type = 0
-        self.offset = size_t
-        self.flags = int_
-        self.children = None
-        self.size = size_t
-        self.data_offset = size_t
-
 class list_node:
     def __init__(self):
         self.previous = 0
@@ -1456,9 +1455,8 @@ def nestegg_free_packet(pkt):
     pkt = ''
 
 def ne_io_read(io, buffer, length):
-    print(vars(io))
-    print(io.read)
-    r = io.read(buffer, length, io.userdata)
+    r = io['read'](buffer, length, io['userdata'])
+    
     return r
 
 def ne_bare_read_vint(io, value, length, maskflag):
@@ -1471,28 +1469,29 @@ def ne_bare_read_vint(io, value, length, maskflag):
     r = ne_io_read(io, b, 1)
     if r != 1:
         return r
+
     
     while count < maxlen:
-        if (b.val[0] & mask) != 0:
+        if (b['val'][0] & mask) != 0:
             break
         mask >>= 1
         count += 1
     
     if length:
         length.val = count
-        
-    value.val = b.val[0]
+    
+    value['val'] = b['val'][0]
         
     if maskflag == MASK_FIRST_BIT:
-        value.val = b.val[0] & ~mask
+        value['val'] = b['val'][0] & ~mask
     
-    while count > 0:
+    while count > 1:
         count -= 1
         r = ne_io_read(io, b, 1)
         if r != 1:
             return r
-        value.val <<= 8
-        value.val |= b.val[0]
+        value['val'] <<= 8
+        value['val'] |= b['val'][0]
 
     return 1
     
@@ -1531,13 +1530,13 @@ def ne_peek_element(ctx, id, size):
 
     ctx.last_id = { "val": ctx.last_id }
     r = ne_read_id(ctx.io, ctx.last_id, None)
-    ctx.last_id = ctx.last_id.val
+    ctx.last_id = ctx.last_id['val']
     if r != 1:
         return r
     
     ctx.last_size = { "val": ctx.last_size }
     r = ne_read_vint(ctx.io, ctx.last_size, None)
-    ctx.last_size = ctx.last_size.val
+    ctx.last_size = ctx.last_size['val']
     if r != 1:
         return r
     
@@ -1557,14 +1556,14 @@ def ne_read_uint(io, val, length):
     r = ne_io_read(io, b, 1)
     if r != 1:
         return r
-    val[0] = b.val[0]
+    val[0] = b['val'][0]
     while length > 0:
         length -= 1
         r = ne_io_read(io, b, 1)
         if r != 1:
             return r
         val[0] <<= 8
-        val[0] |= b.val[0]
+        val[0] |= b['val'][0]
 
     return 1
 
@@ -1594,6 +1593,7 @@ def ne_read_string(ctx, val, length):
     if length == 0 or length > LIMIT_STRING:
         return -1
     
+    print(ctx.io)
     r = ne_io_read(ctx.io, str, length)
     if r != 1:
         return r
@@ -1885,10 +1885,10 @@ def ne_io_tell(io):
 def ne_ctx_push(ctx, ancestor, data):
     item_ = list_node()
     
-    item_.previous = ctx.ancestor
+    item_.previous = getattr(ctx, 'ancestor')
     item_.node = ancestor
     item_.data = data
-    ctx.ancestor = item_
+    setattr(ctx, 'ancestor', item_)
 
 def ne_read_master(ctx, desc):
     list, oldtail = None, None
@@ -1914,14 +1914,14 @@ def ne_read_master(ctx, desc):
 def ne_read_single_master(ctx, desc):
     ASSERT(desc.type == TYPE_MASTER and not (desc.flags & DESC_FLAG_MULTI))
     
-    ne_ctx_push(ctx, desc.children, ctx.ancestor.data[desc.offset])
+    ne_ctx_push(ctx, desc.children, getattr(getattr(ctx, 'ancestor').data, desc.offset))
 
 def ne_read_simple(ctx, desc, length):
     storage = None
     r = int_
     
-    if ctx.ancestor.data[desc.offset]:
-        storage = ctx.ancestor.data[desc.offset]
+    if getattr(ctx.ancestor.data, desc.offset):
+        storage = getattr(ctx.ancestor.data, desc.offset)
     
     if storage.read:
         return 0
@@ -1931,21 +1931,21 @@ def ne_read_simple(ctx, desc, length):
     r = -1
     
     if desc.type == TYPE_UINT:
-        storage.v.u = [storage.v.u]
-        r = ne_read_uint(ctx.io, storage.v.u, length)
-        storage.v.u = storage.v.u[0]
+        storage.v['u'] = [storage.v['u']]
+        r = ne_read_uint(ctx.io, storage.v['u'], length)
+        storage.v['u'] = storage.v['u'][0]
     elif desc.type == TYPE_FLOAT:
-        storage.v.f = [storage.v.f]
-        r = ne_read_float(ctx.io, storage.v.f, length)
-        storage.v.f = storage.v.f[0]
+        storage.v['f'] = [storage.v['f']]
+        r = ne_read_float(ctx.io, storage.v['f'], length)
+        storage.v['f'] = storage.v['f'][0]
     elif desc.type == TYPE_INT:
-        storage.v.i = [storage.v.i]
-        r = ne_read_int(ctx.io, storage.v.i, length)
-        storage.v.i = storage.v.i[0]
+        storage.v['i'] = [storage.v['i']]
+        r = ne_read_int(ctx.io, storage.v['i'], length)
+        storage.v['i'] = storage.v['i'][0]
     elif desc.type == TYPE_STRING:
-        storage.v.s = [storage.v.s]
-        r = ne_read_string(ctx.io, storage.v.s, length)
-        storage.v.s = storage.v.s[0]
+        storage.v['s'] = [storage.v['s']]
+        r = ne_read_string(ctx.io, storage.v['s'], length)
+        storage.v['s'] = storage.v['s'][0]
     elif desc.type == TYPE_BINARY:
         r = ne_read_binary(ctx, storage.v.b, length)
     elif desc.type == TYPE_MASTER or desc.type == TYPE_UNKNOWN:
@@ -1979,7 +1979,7 @@ def ne_io_read_skip(io, length):
     r = 1
     
     while length > 0:
-        get_ = length if length < buf.val.length else buf.val.length
+        get_ = length if length < len(buf['val']) else len(buf['val'])
         r = ne_io_read(io, buf, get_)
         if r != 1:
             break
@@ -2117,15 +2117,15 @@ def buffer8k():
     return Arr(8800, 0)
 
 def fread(ptr, size, count, stream):
-    ptr.val = buffer8k()
+    ptr['val'] = buffer8k()
     
-    if stream.data.length < count + stream.data_off:
-        stream.data_off += count
+    if len(stream['data']) < count + stream['data_off']:
+        stream['data_off'] += count
         return 0
     for i in range(count):
-        stream.data_off += 1
-        ptr.val[i] = stream.data[stream.data_off]
-    ptr.val.length = count
+        ptr['val'][i] = stream['data'][stream['data_off']]
+        stream['data_off'] += 1
+    ptr['val'] = ptr['val'][:count]
     return i
 
 def nestegg_packet_data(pkt, item_, data, length):
@@ -5078,7 +5078,7 @@ def vp8_dixie_decode_frame(ctx, data, sz):
     return ctx_.error.error_code
 
 def feof(stream):
-    if (stream.data.length < stream.data_off):
+    if (len(stream['data']) < stream['data_off']):
         return 1
     return 0
 
@@ -5120,6 +5120,11 @@ def ne_get_string(type, value):
 
     return 0
 
+def ne_pool_init():
+    pool = pool_ctx()
+
+    return pool
+
 ctx_ = nestegg()
 def nestegg_init(context, io, callback):
     r = int_
@@ -5129,11 +5134,14 @@ def nestegg_init(context, io, callback):
     track = None
     doctype = [char_]
     ctx = ctx_
+    
+    # if not (hasattr(io, 'read') and hasattr(io, 'seek') and hasattr(io, 'tell')):
+    #     return -1
 
-    if (not (io.read and io.seek and io.tell)):
-        return -1
-
-    r = ne_peek_element(ctx, id, None);
+    ctx.io = io
+    ctx.alloc_pool = ne_pool_init()
+    
+    r = ne_peek_element(ctx, id, None)
     if (r != 1):
         nestegg_destroy(ctx)
         return -1
@@ -5282,6 +5290,7 @@ def file_is_webm(input, fourcc, width, height, fps_den, fps_num):
     params = nestegg_video_params()
     input.nestegg_ctx = [input.nestegg_ctx]
     
+
     if (nestegg_init(input.nestegg_ctx, io, None)):
         print('goto fail')
         
@@ -5290,7 +5299,7 @@ def file_is_webm(input, fourcc, width, height, fps_den, fps_num):
     if (nestegg_track_count(input.nestegg_ctx, n)):
         print('goto fail')
 
-    for i in range(n):
+    for i in range(n[0]):
         track_type = nestegg_track_type(input.nestegg_ctx, i)
 
         if (track_type == NESTEGG_TRACK_VIDEO):
