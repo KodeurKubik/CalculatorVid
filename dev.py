@@ -5,6 +5,113 @@ def vpximg2canvas(img):
 
 
 
+def ebml():
+    ebml.ebml_version = ebml_type()
+    ebml.ebml_read_version = ebml_type()
+    ebml.ebml_max_id_length = ebml_type()
+    ebml.ebml_max_size_length = ebml_type()
+    ebml.doctype = ebml_type()
+    ebml.doctype_version = ebml_type()
+    ebml.doctype_read_version = ebml_type()
+globals()["ebml"] = ebml
+
+def seek():
+    seek.id = ebml_type(),
+    seek.position = ebml_type()
+globals()["seek"] = seek
+
+def seek_head():
+    seek_head.seek = ebml_list()
+globals()["seek_head"] = seek_head
+
+# globals()["info"] = info
+# def info():
+#     this.timecode_scale = this["timecode_scale"] = new ebml_type(),
+#         this.duration = this["duration"] = new ebml_type()
+# };
+
+# globals()["block_group"] = block_group
+# def block_group():
+#     this.duration = this["duration"] = new ebml_type(),
+#         this.reference_block = this["reference_block"] = new ebml_type()
+# };
+
+# globals()["cluster"] = cluster
+# def cluster():
+#     this.timecode = this["timecode"] = new ebml_type(),
+#         this.block_group = this["block_group"] = new ebml_list()
+# };
+
+# globals()["video"] = video
+# def video():
+#     this.pixel_width = this["pixel_width"] = new ebml_type(),
+#         this.pixel_height = this["pixel_height"] = new ebml_type(),
+#         this.pixel_crop_bottom = this["pixel_crop_bottom"] = new ebml_type(),
+#         this.pixel_crop_top = this["pixel_crop_top"] = new ebml_type(),
+#         this.pixel_crop_left = this["pixel_crop_left"] = new ebml_type(),
+#         this.pixel_crop_right = this["pixel_crop_right"] = new ebml_type(),
+#         this.display_width = this["display_width"] = new ebml_type(),
+#         this.display_height = this["display_height"] = new ebml_type()
+# };
+
+# globals()["audio"] = audio
+# def audio():
+#     this.sampling_frequency = this["sampling_frequency"] = new ebml_type(),
+#         this.channels = this["channels"] = new ebml_type(),
+#         this.bit_depth = this["bit_depth"] = new ebml_type()
+# };
+
+# globals()["track_entry"] = track_entry
+# def track_entry():
+#     this.number = this["number"] = new ebml_type(),
+#         this.uid = this["uid"] = new ebml_type(),
+#         this.type = this["type"] = new ebml_type(),
+#         this.flag_enabled = this["flag_enabled"] = new ebml_type(),
+#         this.flag_default = this["flag_default"] = new ebml_type(),
+#         this.flag_lacing = this["flag_lacing"] = new ebml_type(),
+#         this.track_timecode_scale = this["track_timecode_scale"] = new ebml_type(),
+#         this.language = this["language"] = new ebml_type(),
+#         this.codec_id = this["codec_id"] = new ebml_type(),
+#         this.codec_private = this["codec_private"] = new ebml_type(),
+#         this.video = this["video"] = new video(),
+#         this.audio = this["audio"] = new audio()
+# };
+
+# globals()["tracks"] = tracks
+# def tracks():
+#     this.track_entry = this["track_entry"] = new ebml_list()
+# };
+
+# globals()["cue_track_positions"] = cue_track_positions
+# def cue_track_positions():
+#     this.track = this["track"] = new ebml_type(),
+#         this.cluster_position = this["cluster_position"] = new ebml_type(),
+#         this.block_number = this["block_number"] = new ebml_type()
+# };
+
+# globals()["cue_point"] = cue_point
+# def cue_point():
+#     this.time = this["time"] = new ebml_type(),
+#         this.cue_track_positions = this["cue_track_positions"] = new ebml_list()
+# };
+
+# globals()["cues"] = cues
+# def cues():
+#     this.cue_point = this["cue_point"] = new ebml_list()
+# };
+
+# globals()["segment"] = segment
+# def segment():
+#     this.seek_head = this["seek_head"] = new ebml_list(),
+#         this.info = this["info"] = new info(),
+#         this.cluster = this["cluster"] = new ebml_list(),
+#         this.tracks = this["tracks"] = new tracks(),
+#         this.cues = this["cues"] = new cues()
+# };
+
+
+
+
 def strcmp(str1, str2):
     return (0 if (str1 == str2) else (1 if (str1 > str2) else -1))
 
@@ -1455,7 +1562,9 @@ def nestegg_free_packet(pkt):
     pkt = ''
 
 def ne_io_read(io, buffer, length):
-    r = io['read'](buffer, length, io['userdata'])
+    # print(buffer)
+    r = io['read'](buffer, length, io.get('userdata'))
+    # print('AeE  ' + str(r))
     
     return r
 
@@ -1557,7 +1666,7 @@ def ne_read_uint(io, val, length):
     if r != 1:
         return r
     val[0] = b['val'][0]
-    while length > 0:
+    while length > 1:
         length -= 1
         r = ne_io_read(io, b, 1)
         if r != 1:
@@ -1592,16 +1701,15 @@ def ne_read_string(ctx, val, length):
     
     if length == 0 or length > LIMIT_STRING:
         return -1
-    
-    print(ctx.io)
-    r = ne_io_read(ctx.io, str, length)
+
+    r = ne_io_read(ctx, str, length)
     if r != 1:
         return r
     str2 = ''
     for i in range(length):
-        str2 += chr(str.val[i])
-    str.val = str2
-    val[0] = str.val
+        str2 += chr(str['val'][i])
+    str['val'] = str2
+    val[0] = str['val']
     return 1
 
 def ne_read_binary(ctx, val, length):
@@ -1708,6 +1816,7 @@ def ne_read_ebml_lacing(io, block, read, n, sizes):
 def ne_find_track_entry(ctx, track):
     tracks = 0
     
+    print(vars(ctx.segment.tracks.track_entry))
     node = ctx.segment.tracks.track_entry.head
     while node:
         ASSERT(node.id == ID_TRACK_ENTRY)
@@ -1907,6 +2016,7 @@ def ne_read_master(ctx, desc):
         oldtail.next = node
     list.tail = node
     if not list.head:
+        print('Setting head')
         list.head = node
     
     ne_ctx_push(ctx, desc.children, node.data)
@@ -1993,16 +2103,23 @@ def ne_parse(ctx, top_level):
     id, size = [uint64_t], [uint64_t]
     element = None
     
+    print('ne parse')
     if not ctx.ancestor:
         return -1
     
     while 1:
+        print('IDD')
+        print(id[0])
         r = ne_peek_element(ctx, id, size)
         if r != 1:
             break
+        print(id[0])
+        print()
         
         element = ne_find_element(id[0], ctx.ancestor.node)
+        # print(element)
         if element:
+            # print(element.name)
             if element.flags & DESC_FLAG_SUSPEND:
                 ASSERT(element.type == TYPE_BINARY)
                 r = 1
@@ -2122,9 +2239,11 @@ def fread(ptr, size, count, stream):
     if len(stream['data']) < count + stream['data_off']:
         stream['data_off'] += count
         return 0
-    for i in range(count):
+    i = 0
+    for _ in range(count):
         ptr['val'][i] = stream['data'][stream['data_off']]
         stream['data_off'] += 1
+        i += 1
     ptr['val'] = ptr['val'][:count]
     return i
 
@@ -5085,7 +5204,12 @@ def feof(stream):
 def nestegg_read_cb(buffer, length, userdata):
     f = userdata
 
-    if (fread(buffer, 1, length, f) < length):
+    freaded = fread(buffer, 1, length, f)
+    # print('fred')
+    # print(freaded)
+    # print(length)
+    # print()
+    if (freaded < length):
         if (feof(f)):
             return 0
             
@@ -5156,6 +5280,7 @@ def nestegg_init(context, io, callback):
 
     if (r != 1):
         nestegg_destroy(ctx)
+        print('ee')
         return -1
 
     if (ne_get_uint(ctx.ebml.ebml_read_version, version) != 0):
@@ -5183,6 +5308,8 @@ def nestegg_init(context, io, callback):
     track = ctx.segment.tracks.track_entry.head
     ctx.track_count = 0
 
+    # print('track')
+    # print(track)
     while (track):
         ctx.track_count += 1
         track = track.next
@@ -5217,6 +5344,7 @@ def nestegg_track_codec_id(ctx, track):
     codec_id = [char_]
 
     entry = ne_find_track_entry(ctx, track)
+
     if (not entry):
         return -1
 
@@ -5296,9 +5424,11 @@ def file_is_webm(input, fourcc, width, height, fps_den, fps_num):
         
     input.nestegg_ctx = input.nestegg_ctx[0]
 
+    print(n)
     if (nestegg_track_count(input.nestegg_ctx, n)):
         print('goto fail')
 
+    print(n)
     for i in range(n[0]):
         track_type = nestegg_track_type(input.nestegg_ctx, i)
 
